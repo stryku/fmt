@@ -1208,9 +1208,14 @@ TEST(FormatTest, ConstexprSpecsHandler) {
 
 FMT_CONSTEXPR fmt::internal::dynamic_format_specs<char>
     parse_dynamic_specs(const char *s) {
-  fmt::internal::dynamic_format_specs<char> specs;
+    typedef fmt::internal::dynamic_format_specs<char> dynamic_specs;
+    dynamic_specs specs;
   test_context ctx{};
-  fmt::internal::dynamic_specs_handler<test_context> h(specs, ctx);
+  typedef fmt::internal::dynamic_arg_ref_creator< test_context> specs_creator;
+  typedef fmt::internal::dynamic_specs_handler<dynamic_specs, test_context, specs_creator> handler_type;
+  specs_creator creator(ctx);
+  handler_type h(specs, ctx, creator);
+  //handler_type(specs_, ctx, creator)
   parse_format_specs(s, h);
   return specs;
 }

@@ -177,9 +177,9 @@ class format_preparation_handler : public internal::error_handler {
     typedef internal::prepared_format_specs<Char> prepared_specs;
     typedef basic_parse_context<Char> parse_context;
     prepared_specs parsed_specs;
-    typedef internal::prepared_specs_creator< parse_context> specs_creator;
-    typedef internal::dynamic_specs_handler2<prepared_specs, parse_context, specs_creator> handler_type;
-    specs_creator creator(parse_context_, format_);
+    typedef internal::prepared_arg_ref_creator< parse_context> arg_ref_creator;
+    typedef internal::dynamic_specs_handler<prepared_specs, parse_context, arg_ref_creator> handler_type;
+    arg_ref_creator creator(parse_context_, format_);
     handler_type handler(
         //internal::prepared_specs_handler<basic_parse_context<Char>> handler(
         parsed_specs, parse_context_, creator);
