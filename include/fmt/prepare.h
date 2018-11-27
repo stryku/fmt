@@ -174,9 +174,15 @@ class format_preparation_handler : public internal::error_handler {
   FMT_CONSTEXPR const Char* on_format_specs(iterator it) {
     const auto specs_offset = pointer_from(it) - format_.begin();
 
-    internal::prepared_format_specs<Char> parsed_specs;
-    internal::prepared_specs_handler<basic_parse_context<Char>> handler(
-        format_, parsed_specs, parse_context_);
+    typedef internal::prepared_format_specs<Char> prepared_specs;
+    typedef basic_parse_context<Char> parse_context;
+    prepared_specs parsed_specs;
+    typedef internal::prepared_specs_creator< parse_context> specs_creator;
+    typedef internal::dynamic_specs_handler2<prepared_specs, parse_context, specs_creator> handler_type;
+    specs_creator creator(parse_context_, format_);
+    handler_type handler(
+        //internal::prepared_specs_handler<basic_parse_context<Char>> handler(
+        parsed_specs, parse_context_, creator);
     it = parse_format_specs(it, handler);
 
     if (*it != '}') on_error("missing '}' in format string");
@@ -231,7 +237,7 @@ class parsed_specs_checker {
   }
 
  private:
-  speck_checker2<ErrorHandler> checker_;
+  speck_checker <ErrorHandler> checker_;
 };
 
 template <typename Format, typename PreparedPartsProvider, typename... Args>
