@@ -1599,13 +1599,13 @@ FMT_CONSTEXPR unsigned parse_nonnegative_int(
 struct formatter_result {
   formatter_result(bool h, bool succeed)
       : handled(h), formatted_successfully(succeed) {}
-  formatter_result(bool h) : handled(h), formatted_successfully(false) {}
+  explicit formatter_result(bool h) : handled(h), formatted_successfully(false) {}
   bool handled;
   bool formatted_successfully;
 };
 
 template <typename Char, typename Context>
-class custom_formatter: public function<bool> {
+class custom_formatter: public function<formatter_result> {
  private:
   Context &ctx_;
 
