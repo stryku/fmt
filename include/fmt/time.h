@@ -115,7 +115,8 @@ inline std::size_t strftime(wchar_t *str, std::size_t count,
 template <typename Char>
 struct formatter<std::tm, Char> {
   template <typename ParseContext>
-  auto parse(ParseContext &ctx) -> decltype(ctx.begin()) {
+  formatter_parse_result<typename ParseContext::iterator>
+  parse(ParseContext &ctx) {
     auto it = internal::null_terminating_iterator<Char>(ctx);
     if (*it == ':')
       ++it;
@@ -126,7 +127,7 @@ struct formatter<std::tm, Char> {
     using internal::pointer_from;
     tm_format.append(pointer_from(it), pointer_from(end));
     tm_format.push_back('\0');
-    return pointer_from(end);
+    return {true, pointer_from(end)};
   }
 
   template <typename FormatContext>
