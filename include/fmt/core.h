@@ -67,7 +67,14 @@
 # define FMT_CONSTEXPR_DECL constexpr
 #else
 # define FMT_CONSTEXPR inline
-# define FMT_CONSTEXPR_DECL
+# define FMT_CONSTEXPR_DECL const
+#endif
+
+// Check whether we can use unrestricted unions (e.g. unions with non-PODs
+// members).
+#ifndef FMT_USE_UNRESTICTED_UNIONS
+# define FMT_USE_UNRESTICTED_UNIONS \
+  (FMT_MSC_VER >= 1900 || FMT_GCC_VERSION >= 406)
 #endif
 
 #ifndef FMT_USE_CONSTEXPR11
@@ -478,6 +485,14 @@ template <
 FMT_CONSTEXPR basic_string_view<typename S::char_type>
   to_string_view(const S &s) { return s; }
 
+template <typename It>
+struct formatter_parse_result {
+  FMT_CONSTEXPR formatter_parse_result(bool s, It stopped)
+      : succeed(s), stopped_at(stopped) {}
+  bool succeed;
+  It stopped_at;
+};
+
 template <typename Context>
 class basic_format_arg;
 
@@ -501,6 +516,9 @@ struct formatter {
 template <typename T, typename Char, typename Enable = void>
 struct convert_to_int: std::integral_constant<
   bool, !std::is_arithmetic<T>::value && std::is_convertible<T, int>::value> {};
+
+template <typename Char>
+struct basic_format_specs;
 
 namespace internal {
 
@@ -554,7 +572,7 @@ struct string_value {
 template <typename Context>
 struct custom_value {
   const void *value;
-  void (*format)(const void *arg, Context &ctx);
+  bool (*format)(const void *arg, Context &ctx);
 };
 
 // A formatting argument value.
@@ -613,14 +631,19 @@ class value {
  private:
   // Formats an argument of a custom type, such as a user-defined class.
   template <typename T>
-  static void format_custom_arg(const void *arg, Context &ctx) {
+  static bool format_custom_arg(const void *arg, Context &ctx) {
     // Get the formatter type through the context to allow different contexts
     // have different extension points, e.g. `formatter<T>` for `format` and
     // `printf_formatter<T>` for `printf`.
     typename Context::template formatter_type<T>::type f;
     auto &&parse_ctx = ctx.parse_context();
-    parse_ctx.advance_to(f.parse(parse_ctx));
-    ctx.advance_to(f.format(*static_cast<const T*>(arg), ctx));
+    const auto parsing_result = f.parse(parse_ctx);
+    if (!parsing_result.succeed) {
+      return false;
+    }
+    parse_ctx.advance_to(parsing_result.stopped_at);
+    ctx.advance_to(f.format(*static_cast<const T *>(arg), ctx));
+    return true;
   }
 };
 
@@ -796,7 +819,9 @@ class basic_format_arg {
    public:
     explicit handle(internal::custom_value<Context> custom): custom_(custom) {}
 
-    void format(Context &ctx) const { custom_.format(custom_.value, ctx); }
+    bool format(Context &ctx) const {
+      return custom_.format(custom_.value, ctx);
+    }
 
    private:
     internal::custom_value<Context> custom_;
@@ -909,7 +934,7 @@ class basic_parse_context : private ErrorHandler {
     next_arg_id_ = -1;
     return true;
   }
-  void check_arg_id(basic_string_view<Char>) {}
+  FMT_CONSTEXPR void check_arg_id(basic_string_view<Char>) {}
 
   FMT_CONSTEXPR void on_error(const char *message) {
     ErrorHandler::on_error(message);
@@ -1105,7 +1130,7 @@ class basic_format_context :
   basic_format_context(OutputIt out, basic_string_view<char_type> format_str,
                        basic_format_args<basic_format_context> ctx_args,
                        internal::locale_ref loc = internal::locale_ref())
-    : base(out, format_str, ctx_args, loc) {}
+    : base(out, format_str, ctx_args, loc), prepared_specs_(FMT_NULL) {}
 
   format_arg next_arg() {
     return this->do_get_arg(this->parse_context().next_arg_id());
@@ -1115,6 +1140,17 @@ class basic_format_context :
   // Checks if manual indexing is used and returns the argument with the
   // specified name.
   format_arg get_arg(basic_string_view<char_type> name);
+  bool has_prepared_specs() const { return prepared_specs_ != FMT_NULL; }
+  basic_format_specs<char_type> get_prepared_specs() const {
+    return *prepared_specs_;
+  }
+  void set_prepared_specs(basic_format_specs<char_type> &specs) {
+    prepared_specs_ = &specs;
+  }
+  void clear_prepared_specs() { prepared_specs_ = FMT_NULL; }
+
+ private:
+  basic_format_specs<char_type> *prepared_specs_;
 };
 
 template <typename Char>
