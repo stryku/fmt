@@ -1854,7 +1854,7 @@ struct arg_ref {
 
   FMT_CONSTEXPR arg_ref &operator=(unsigned idx) {
     kind = INDEX;
-    index = idx;
+    val.index = idx;
     return *this;
   }
 
@@ -2272,8 +2272,12 @@ FMT_CONSTEXPR void parse_format_string(
       if (begin == end) return;
       for (;;) {
         const Char *p = FMT_NULL;
-        if (!find<IS_CONSTEXPR>(begin, end, '}', p))
-          return handler_.on_text(begin, end);
+        if (!find<IS_CONSTEXPR>(begin, end, '}', p)) {
+            if (begin != end) {
+                handler_.on_text(begin, end);
+            }
+            return;
+        }
         ++p;
         if (p == end || *p != '}')
           return handler_.on_error("unmatched '}' in format string");
@@ -3321,7 +3325,6 @@ class dynamic_formatter {
       specs = specs_;
     }
 
-    handle_specs(ctx);
     internal::specs_check_handler<null_handler>
         checker(null_handler(), internal::get_type<FormatContext, T>::value);
     checker.on_align(specs.align());
@@ -3435,6 +3438,7 @@ struct format_handler : internal::error_handler {
   }
 
   void on_replacement_field(const Char *p) {
+    context.parse_context().advance_to(p);
     parts_writer.argument(arg);
   }
 

@@ -1089,14 +1089,16 @@ TEST(FormatTest, ConstexprParseArgID) {
 
 struct test_format_specs_handler {
   enum Result { NONE, PLUS, MINUS, SPACE, HASH, ZERO, ERROR };
+  typedef fmt::internal::arg_ref<char, fmt::internal::string_value<char>>
+      arg_ref;
   Result res = NONE;
 
   fmt::alignment align_ = fmt::ALIGN_DEFAULT;
   char fill = 0;
   unsigned width = 0;
-  fmt::internal::arg_ref<char> width_ref;
+  arg_ref width_ref;
   unsigned precision = 0;
-  fmt::internal::arg_ref<char> precision_ref;
+  arg_ref precision_ref;
   char type = 0;
 
   // Workaround for MSVC2017 bug that results in "expression did not evaluate
@@ -1231,7 +1233,7 @@ TEST(FormatTest, ConstexprDynamicSpecsHandler) {
 }
 
 FMT_CONSTEXPR test_format_specs_handler check_specs(const char *s) {
-  fmt::internal::specs_checker<test_format_specs_handler>
+  fmt::internal::specs_check_handler<test_format_specs_handler>
       checker(test_format_specs_handler(), fmt::internal::double_type);
   parse_format_specs(s, checker);
   return checker;
