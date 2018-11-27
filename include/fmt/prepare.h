@@ -47,13 +47,13 @@ struct format_part {
     FMT_CONSTEXPR argument_id() : argument_id(0u) {}
 
     FMT_CONSTEXPR argument_id(unsigned id)
-        : which(which_arg_id::index), value() {
-      value.index = id;
+        : which(which_arg_id::index), val() {
+        val.index = id;
     }
 
     FMT_CONSTEXPR argument_id(internal::string_view_metadata id)
-        : which(which_arg_id::named_index), value() {
-      value.named_index = id;
+        : which(which_arg_id::named_index), val() {
+        val.named_index = id;
     }
 
     enum class which_arg_id { index, named_index };
@@ -61,16 +61,16 @@ struct format_part {
     which_arg_id which;
 
 #if FMT_USE_UNRESTICTED_UNIONS
-    union val {
+    union value {
 #else
-    struct val {
+    struct value {
 #endif
       // Default ctor to satisfy constexpr
-      FMT_CONSTEXPR val() : index(0u) {}
+      FMT_CONSTEXPR value() : index(0u) {}
 
       unsigned index;
       internal::string_view_metadata named_index;
-    } value;
+    } val;
   };
 
   struct specification {
@@ -86,27 +86,27 @@ struct format_part {
 
   FMT_CONSTEXPR format_part()
       : which(which_value::argument_id), end_of_argument_id(0u) {
-    value.arg_id = 0u;
+      val.arg_id = 0u;
   }
 
   FMT_CONSTEXPR format_part(internal::string_view_metadata text)
       : which(which_value::text), end_of_argument_id(0u) {
-    value.text = text;
+      val.text = text;
   }
 
   FMT_CONSTEXPR format_part(unsigned id)
       : which(which_value::argument_id), end_of_argument_id(0u) {
-    value.arg_id = id;
+      val.arg_id = id;
   }
 
   FMT_CONSTEXPR format_part(named_argument_id arg_id)
       : which(which_value::named_argument_id), end_of_argument_id(0u) {
-    value.named_arg_id = arg_id.id;
+      val.named_arg_id = arg_id.id;
   }
 
   FMT_CONSTEXPR format_part(specification spec)
       : which(which_value::specification), end_of_argument_id(0u) {
-    value.spec = spec;
+      val.spec = spec;
   }
 
   enum class which_value {
@@ -119,16 +119,16 @@ struct format_part {
   which_value which;
   unsigned end_of_argument_id;
 #if FMT_USE_UNRESTICTED_UNIONS
-  union val {
+  union value {
 #else
-  struct val {
+  struct value {
 #endif
-    FMT_CONSTEXPR val() : arg_id(0u) {}
+    FMT_CONSTEXPR value() : arg_id(0u) {}
     unsigned arg_id;
     internal::string_view_metadata named_arg_id;
     internal::string_view_metadata text;
     specification spec;
-  } value;
+  } val;
 };
 
 namespace internal {
@@ -181,7 +181,6 @@ class format_preparation_handler : public internal::error_handler {
     typedef internal::dynamic_specs_handler<prepared_specs, parse_context, arg_ref_creator> handler_type;
     arg_ref_creator creator(parse_context_, format_);
     handler_type handler(
-        //internal::prepared_specs_handler<basic_parse_context<Char>> handler(
         parsed_specs, parse_context_, creator);
     it = parse_format_specs(it, handler);
 
@@ -191,8 +190,8 @@ class format_preparation_handler : public internal::error_handler {
 
     auto specs =
         last_part.which == part::which_value::argument_id
-            ? typename part::specification(last_part.value.arg_id)
-            : typename part::specification(last_part.value.named_arg_id);
+            ? typename part::specification(last_part.val.arg_id)
+            : typename part::specification(last_part.val.named_arg_id);
 
     specs.parsed_specs = parsed_specs;
 
@@ -318,7 +317,7 @@ class prepared_format {
     const auto& parts = parts_provider_.parts();
     for (auto part_it = parts.begin(); part_it != parts.end(); ++part_it) {
       const auto& part = *part_it;
-      const auto& value = part.value;
+      const auto& value = part.val;
       ctx.clear_prepared_specs();
 
       switch (part.which) {
@@ -338,7 +337,7 @@ class prepared_format {
           w.argument(argument_name);
         } break;
         case format_part_t::which_value::specification: {
-          const auto& arg_id_value = value.spec.arg_id.value;
+          const auto& arg_id_value = value.spec.arg_id.val;
           const auto arg =
               value.spec.arg_id.which ==
                       format_part_t::argument_id::which_arg_id::index

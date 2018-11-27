@@ -60,12 +60,12 @@ bool operator==(const format_part<char>::specification& lhs,
   typedef format_part<char>::argument_id::which_arg_id which_arg_id;
   switch (lhs.arg_id.which) {
     case which_arg_id::index: {
-      if (lhs.arg_id.value.index != rhs.arg_id.value.index) {
+      if (lhs.arg_id.val.index != rhs.arg_id.val.index) {
         return false;
       }
     } break;
     case which_arg_id::named_index: {
-      if (lhs.arg_id.value.named_index != rhs.arg_id.value.named_index) {
+      if (lhs.arg_id.val.named_index != rhs.arg_id.val.named_index) {
         return false;
       }
     } break;
@@ -95,19 +95,19 @@ bool operator==(const format_part<char>& lhs,
 
   switch (lhs.which) {
     case which_value::argument_id: {
-      return lhs.value.arg_id == rhs.value.arg_id;
+      return lhs.val.arg_id == rhs.val.arg_id;
     }
 
     case which_value::named_argument_id: {
-      return lhs.value.named_arg_id == rhs.value.named_arg_id;
+      return lhs.val.named_arg_id == rhs.val.named_arg_id;
     }
 
     case which_value::text: {
-      return lhs.value.text == rhs.value.text;
+      return lhs.val.text == rhs.val.text;
     }
 
     case which_value::specification: {
-      return lhs.value.spec == rhs.value.spec;
+      return lhs.val.spec == rhs.val.spec;
     }
   }
 

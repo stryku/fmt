@@ -1900,12 +1900,12 @@ public:
 
     template <typename Id>
     FMT_CONSTEXPR void on_dynamic_width(Id arg_id) {
-        specs_.width_ref = arg_ref_creator_.make_arg_ref(arg_id);
+        specs_.width_ref = arg_ref_creator_.create(arg_id);
     }
 
     template <typename Id>
     FMT_CONSTEXPR void on_dynamic_precision(Id arg_id) {
-        specs_.precision_ref = arg_ref_creator_.make_arg_ref(arg_id);
+        specs_.precision_ref = arg_ref_creator_.create(arg_id);
     }
 
     FMT_CONSTEXPR void on_error(const char *message) {
@@ -1929,17 +1929,17 @@ public:
         :context_(ctx)
     {}
 
-    FMT_CONSTEXPR arg_ref_type make_arg_ref(unsigned arg_id) {
+    FMT_CONSTEXPR arg_ref_type create(unsigned arg_id) {
         context_.check_arg_id(arg_id);
         return arg_ref_type(arg_id);
     }
 
-    FMT_CONSTEXPR arg_ref_type make_arg_ref(basic_string_view<char_type> id) {
+    FMT_CONSTEXPR arg_ref_type create(basic_string_view<char_type> id) {
         context_.check_arg_id(id);
         return arg_ref_type(string_value<char_type>{id.data(), id.size()});
     }
 
-    FMT_CONSTEXPR arg_ref_type make_arg_ref(auto_id) {
+    FMT_CONSTEXPR arg_ref_type create(auto_id) {
         return arg_ref_type(context_.next_arg_id());
     }
 
@@ -1978,18 +1978,18 @@ public:
         , format_(format_str)
     {}
 
-    FMT_CONSTEXPR arg_ref_type make_arg_ref(basic_string_view<char_type> id) {
+    FMT_CONSTEXPR arg_ref_type create(basic_string_view<char_type> id) {
         context_.check_arg_id(id);
         const auto id_metadata = string_view_metadata(format_, id);
         return arg_ref_type(id_metadata);
     }
 
-    FMT_CONSTEXPR arg_ref_type make_arg_ref(unsigned id) {
+    FMT_CONSTEXPR arg_ref_type create(unsigned id) {
         context_.check_arg_id(id);
         return arg_ref_type(id);
     }
 
-    FMT_CONSTEXPR arg_ref_type make_arg_ref(auto_id) {
+    FMT_CONSTEXPR arg_ref_type create(auto_id) {
         return arg_ref_type(context_.next_arg_id());
     }
 
