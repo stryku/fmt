@@ -85,6 +85,13 @@
 # define FMT_SECURE_SCL 0
 #endif
 
+// Check whether we can use unrestricted unions (e.g. unions with non-PODs
+// members).
+#ifndef FMT_USE_UNRESTRICTED_UNIONS
+#define FMT_USE_UNRESTRICTED_UNIONS                                            \
+  (FMT_MSC_VER >= 1900 || FMT_GCC_VERSION >= 406 || FMT_CLANG_VERSION >= 303)
+#endif
+
 #if FMT_SECURE_SCL
 # include <iterator>
 #endif
@@ -1599,31 +1606,20 @@ FMT_CONSTEXPR unsigned parse_nonnegative_int(
   return value;
 }
 
-struct formatter_result {
-  formatter_result(bool h, bool succeed)
-      : handled(h), formatted_successfully(succeed) {}
-  explicit formatter_result(bool h)
-      : handled(h), formatted_successfully(false) {}
-  bool handled;
-  bool formatted_successfully;
-};
-
 template <typename Char, typename Context>
-class custom_formatter : public function<formatter_result> {
+class custom_formatter : public function<bool> {
 private:
   Context &ctx_;
 
  public:
   explicit custom_formatter(Context &ctx): ctx_(ctx) {}
 
-  formatter_result
-  operator()(typename basic_format_arg<Context>::handle h) const {
-    return formatter_result(true, h.format(ctx_));
+  bool operator()(typename basic_format_arg<Context>::handle h) const {
+    h.format(ctx_);
+    return true;
   }
 
-  template <typename T> formatter_result operator()(T) const {
-    return formatter_result(false);
-  }
+  template <typename T> bool operator()(T) const { return false; }
 };
 
 template <typename T>
@@ -1852,10 +1848,8 @@ template <typename Char, typename Name> struct arg_ref {
   typedef Char char_type;
 
   FMT_CONSTEXPR arg_ref() : kind(NONE), val() {}
-  FMT_CONSTEXPR explicit arg_ref(unsigned index) : kind(INDEX), val() {
-    val.index = index;
-  }
-  FMT_CONSTEXPR explicit arg_ref(Name nm) : kind(NAME), val() { val.name = nm; }
+  FMT_CONSTEXPR explicit arg_ref(unsigned index) : kind(INDEX), val(index) {}
+  FMT_CONSTEXPR explicit arg_ref(Name nm) : kind(NAME), val(nm) {}
 
   FMT_CONSTEXPR arg_ref &operator=(unsigned idx) {
     kind = INDEX;
@@ -1869,8 +1863,9 @@ template <typename Char, typename Name> struct arg_ref {
 #else
   struct value {
 #endif
-    // Default ctor to satisfy constexpr
     FMT_CONSTEXPR value() : index(0u) {}
+    FMT_CONSTEXPR value(unsigned id) : index(id) {}
+    FMT_CONSTEXPR value(Name n) : name(n) {}
 
     unsigned index;
     Name name; // This is not string_view because of gcc 4.4.
@@ -1953,7 +1948,8 @@ struct string_view_metadata {
   template <typename Char>
   FMT_CONSTEXPR string_view_metadata(basic_string_view<Char> primary_string,
                                      basic_string_view<Char> view)
-      : offset_(view.data() - primary_string.data()), size_(view.size()) {}
+      : offset_(static_cast<unsigned>(view.data() - primary_string.data())),
+        size_(static_cast<unsigned>(view.size())) {}
   FMT_CONSTEXPR string_view_metadata(unsigned offset, unsigned size)
       : offset_(offset), size_(size) {}
   template <typename S>
@@ -2329,8 +2325,8 @@ FMT_CONSTEXPR void parse_format_string(
 }
 
 template <typename T, typename ParseContext>
-FMT_CONSTEXPR formatter_parse_result<const typename ParseContext::char_type *>
-parse_format_specs(ParseContext &ctx) {
+FMT_CONSTEXPR auto parse_format_specs(ParseContext &ctx)
+    -> decltype(ctx.begin()) {
   // GCC 7.2 requires initializer.
   formatter<T, typename ParseContext::char_type> f{};
   return f.parse(ctx);
@@ -2364,9 +2360,8 @@ class format_string_checker {
   FMT_CONSTEXPR const Char *on_format_specs(iterator it) {
     auto p = pointer_from(it);
     context_.advance_to(p);
-    return to_unsigned(arg_id_) < NUM_ARGS
-               ? parse_funcs_[arg_id_](context_).stopped_at
-               : p;
+    return to_unsigned(arg_id_) < NUM_ARGS ? parse_funcs_[arg_id_](context_)
+                                           : p;
   }
 
   FMT_CONSTEXPR void on_error(const char *message) {
@@ -2383,8 +2378,7 @@ class format_string_checker {
   }
 
   // Format specifier parsing function.
-  typedef formatter_parse_result<const Char *> (*parse_func)(
-      parse_context_type &);
+  typedef const Char *(*parse_func)(parse_context_type &);
 
   int arg_id_;
   parse_context_type context_;
@@ -3221,8 +3215,7 @@ struct formatter<
   // Parses format specifiers stopping either at the end of the range or at the
   // terminating '}'.
   template <typename ParseContext>
-  FMT_CONSTEXPR formatter_parse_result<typename ParseContext::iterator>
-  parse(ParseContext &ctx) {
+  FMT_CONSTEXPR auto parse(ParseContext &ctx) -> decltype(ctx.begin()) {
     auto it = internal::null_terminating_iterator<Char>(ctx);
     typedef internal::dynamic_arg_ref_creator<ParseContext> specs_creator;
     typedef internal::dynamic_specs_handler<
@@ -3274,7 +3267,7 @@ struct formatter<
       // formatter specializations.
       break;
     }
-    return {true, pointer_from(it)};
+    return pointer_from(it);
   }
 
   template <typename FormatContext>
@@ -3320,20 +3313,20 @@ class dynamic_formatter {
 
 public:
   template <typename ParseContext>
-  formatter_parse_result<typename ParseContext::iterator>
-  parse(ParseContext &ctx) {
+  auto parse(ParseContext &ctx) -> decltype(ctx.begin()) {
     auto it = internal::null_terminating_iterator<Char>(ctx);
 
-    typedef fmt::internal::dynamic_arg_ref_creator<ParseContext> specs_creator;
+    typedef fmt::internal::dynamic_arg_ref_creator<ParseContext>
+        arg_ref_creator;
     typedef fmt::internal::dynamic_specs_handler<dynamic_specs, ParseContext,
-                                                 specs_creator>
+                                                 arg_ref_creator>
         handler_type;
-    specs_creator creator(ctx);
+    arg_ref_creator creator(ctx);
     handler_type handler(specs_, ctx, creator);
 
     // Checks are deferred to formatting time when the argument type is known.
     it = parse_format_specs(it, handler);
-    return {true, pointer_from(it)};
+    return pointer_from(it);
   }
 
   template <typename T, typename FormatContext>
@@ -3415,9 +3408,9 @@ public:
   void argument_with_specs(basic_format_arg<Context> arg,
                            basic_format_specs<Char> spec) {
     internal::custom_formatter<Char, Context> f(context_);
-    const auto formatting_result = visit_format_arg(f, arg);
-    if (formatting_result.handled) {
-      if (!formatting_result.formatted_successfully) {
+    if (visit_format_arg(f, arg)) {
+      const auto parsed_successfully = *context_.parse_context().begin() == '}';
+      if (!parsed_successfully) {
         context_.error_handler().on_error("unknown format specifier");
       }
       return;
@@ -3427,8 +3420,7 @@ public:
 
   void argument(basic_format_arg<Context> arg) {
     internal::custom_formatter<Char, Context> f(context_);
-    const auto formatting_result = visit_format_arg(f, arg);
-    if (!formatting_result.handled) {
+    if (!visit_format_arg(f, arg)) {
       context_.advance_to(visit_format_arg(ArgFormatter(context_), arg));
     }
   }
@@ -3469,9 +3461,13 @@ struct format_handler : internal::error_handler {
     auto &parse_ctx = context.parse_context();
     parse_ctx.advance_to(pointer_from(it));
     internal::custom_formatter<Char, Context> f(context);
-    const auto formatting_result = visit_format_arg(f, arg);
-    if (formatting_result.handled)
+    if (visit_format_arg(f, arg)) {
+      const auto parsed_successfully = *parse_ctx.begin() == '}';
+      if (!parsed_successfully) {
+        on_error("unknown format specifier");
+      }
       return iterator(parse_ctx);
+    }
     basic_format_specs<Char> specs;
     using internal::specs_handler;
     internal::specs_check_handler<specs_handler<Context>> handler(
@@ -3522,7 +3518,7 @@ struct formatter<arg_join<It, Char>, Char>:
     formatter<typename std::iterator_traits<It>::value_type, Char> {
   template <typename FormatContext>
   auto format(const arg_join<It, Char> &value, FormatContext &ctx)
-      -> decltype(ctx.out()) {
+      -> decltype(ctx.begin()) {
     typedef formatter<typename std::iterator_traits<It>::value_type, Char> base;
     auto it = value.begin;
     auto out = ctx.out();
@@ -3880,16 +3876,16 @@ operator"" _a(const wchar_t *s, std::size_t) { return {s}; }
 #endif // FMT_USE_USER_DEFINED_LITERALS
 FMT_END_NAMESPACE
 
-#define FMT_STRING(s) [] { \
-    typedef typename std::remove_cv<std::remove_pointer< \
-      typename std::decay<decltype(s)>::type>::type>::type ct; \
-    struct str : fmt::compile_string { \
-      typedef ct char_type; \
-      FMT_CONSTEXPR operator fmt::basic_string_view<ct>() const { \
-        return {s, sizeof(s) / sizeof(ct) - 1}; \
-      } \
-    }; \
-    return str{}; \
+#define FMT_STRING(s)                                                          \
+  [] {                                                                         \
+    struct str : fmt::compile_string {                                         \
+      typedef typename std::remove_cv<std::remove_pointer<                     \
+          typename std::decay<decltype(s)>::type>::type>::type char_type;      \
+      FMT_CONSTEXPR operator fmt::basic_string_view<char_type>() const {       \
+        return {s, sizeof(s) / sizeof(char_type) - 1};                         \
+      }                                                                        \
+    };                                                                         \
+    return str{};                                                              \
   }()
 
 #if defined(FMT_STRING_ALIAS) && FMT_STRING_ALIAS

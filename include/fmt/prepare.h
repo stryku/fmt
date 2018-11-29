@@ -83,29 +83,20 @@ public:
   };
 
   FMT_CONSTEXPR format_part()
-      : which(which_value::argument_id), end_of_argument_id(0u) {
-    val.arg_id = 0u;
-  }
+      : which(which_value::argument_id), end_of_argument_id(0u), val(0u) {}
 
   FMT_CONSTEXPR format_part(internal::string_view_metadata text)
-      : which(which_value::text), end_of_argument_id(0u) {
-    val.text = text;
-  }
+      : which(which_value::text), end_of_argument_id(0u), val(text) {}
 
   FMT_CONSTEXPR format_part(unsigned id)
-      : which(which_value::argument_id), end_of_argument_id(0u) {
-    val.arg_id = id;
-  }
+      : which(which_value::argument_id), end_of_argument_id(0u), val(id) {}
 
   FMT_CONSTEXPR format_part(named_argument_id arg_id)
-      : which(which_value::named_argument_id), end_of_argument_id(0u) {
-    val.named_arg_id = arg_id.id;
-  }
+      : which(which_value::named_argument_id), end_of_argument_id(0u),
+        val(arg_id) {}
 
   FMT_CONSTEXPR format_part(specification spec)
-      : which(which_value::specification), end_of_argument_id(0u) {
-    val.spec = spec;
-  }
+      : which(which_value::specification), end_of_argument_id(0u), val(spec) {}
 
   enum class which_value {
     argument_id,
@@ -122,6 +113,11 @@ public:
   struct value {
 #endif
     FMT_CONSTEXPR value() : arg_id(0u) {}
+    FMT_CONSTEXPR value(unsigned id) : arg_id(id) {}
+    FMT_CONSTEXPR value(named_argument_id named_id)
+        : named_arg_id(named_id.id) {}
+    FMT_CONSTEXPR value(internal::string_view_metadata t) : text(t) {}
+    FMT_CONSTEXPR value(specification s) : spec(s) {}
     unsigned arg_id;
     internal::string_view_metadata named_arg_id;
     internal::string_view_metadata text;
@@ -143,8 +139,8 @@ public:
       : parts_(parts), format_(format), parse_context_(format) {}
 
   FMT_CONSTEXPR void on_text(const Char *begin, const Char *end) {
-    const auto offset = begin - format_.data();
-    const auto size = end - begin;
+    const auto offset = static_cast<unsigned>(begin - format_.data());
+    const auto size = static_cast<unsigned>(end - begin);
     parts_.add(part(string_view_metadata(offset, size)));
   }
 
@@ -165,12 +161,12 @@ public:
 
   FMT_CONSTEXPR void on_replacement_field(const Char *ptr) {
     auto last_part = parts_.last();
-    last_part.end_of_argument_id = ptr - format_.begin();
+    last_part.end_of_argument_id = static_cast<unsigned>(ptr - format_.begin());
     parts_.substitute_last(last_part);
   }
 
   FMT_CONSTEXPR const Char *on_format_specs(iterator it) {
-    const auto specs_offset = pointer_from(it) - format_.begin();
+    const auto specs_offset = to_unsigned(pointer_from(it) - format_.begin());
 
     typedef internal::prepared_format_specs<Char> prepared_specs;
     typedef basic_parse_context<Char> parse_context;
@@ -196,7 +192,7 @@ public:
     specs.parsed_specs = parsed_specs;
 
     auto new_part = part(specs);
-    new_part.end_of_argument_id = specs_offset;
+    new_part.end_of_argument_id = static_cast<unsigned>(specs_offset);
 
     parts_.substitute_last(new_part);
 
@@ -204,8 +200,8 @@ public:
   }
 
 private:
-  basic_string_view<Char> format_;
   PartsContainer &parts_;
+  basic_string_view<Char> format_;
   basic_parse_context<Char> parse_context_;
 };
 
@@ -250,7 +246,7 @@ public:
 
   prepared_format() = delete;
 
-  unsigned formatted_size(const Args &... args) const {
+  std::size_t formatted_size(const Args &... args) const {
     const auto it = this->format_to(counting_iterator<char_type>(), args...);
     return it.count();
   }
@@ -402,7 +398,7 @@ private:
     }
 
     FMT_CONSTEXPR void on_arg_id() { ++counter_; }
-    FMT_CONSTEXPR void on_arg_id(unsigned id) { ++counter_; }
+    FMT_CONSTEXPR void on_arg_id(unsigned) { ++counter_; }
     FMT_CONSTEXPR void on_arg_id(basic_string_view<char_type>) { ++counter_; }
 
     FMT_CONSTEXPR void on_replacement_field(const char_type *) {}
@@ -411,7 +407,7 @@ private:
       return find_matching_brace(pointer_from(it));
     }
 
-    FMT_CONSTEXPR void on_error(const char *message) {}
+    FMT_CONSTEXPR void on_error(const char *) {}
 
     FMT_CONSTEXPR unsigned result() const { return counter_; }
 
@@ -732,25 +728,6 @@ auto do_prepare(const Format &format)
 #endif
 } // namespace internal
 
-#if FMT_USE_ALIAS_TEMPLATES
-
-template <typename Char, typename Container = std::vector<format_part<Char>>>
-using parts_container = internal::parts_container<Char, Container>;
-
-template <typename Format, typename PreparedPartsContainer, typename... Args>
-using basic_prepared_format =
-    internal::basic_prepared_format<Format, PreparedPartsContainer, Args...>;
-
-template <typename... Args>
-using prepared_format =
-    basic_prepared_format<std::string, parts_container<char>, Args...>;
-
-template <typename... Args>
-using wprepared_format =
-    basic_prepared_format<std::wstring, parts_container<wchar_t>, Args...>;
-
-#else
-
 template <typename Char, typename Container = std::vector<format_part<Char>>>
 struct parts_container {
   typedef internal::parts_container<Char, Container> type;
@@ -773,6 +750,25 @@ template <typename... Args> struct wprepared_format {
                                      typename parts_container<wchar_t>::type,
                                      Args...>::type type;
 };
+
+#if FMT_USE_ALIAS_TEMPLATES
+
+template <typename Char, typename Container = std::vector<format_part<Char>>>
+using parts_container_t = typename parts_container<Char, Container>::type;
+
+template <typename Format, typename PreparedPartsContainer, typename... Args>
+using basic_prepared_format_t =
+    typename basic_prepared_format<Format, PreparedPartsContainer,
+                                   Args...>::type;
+
+template <typename... Args>
+using prepared_format_t =
+    basic_prepared_format_t<std::string, parts_container<char>, Args...>;
+
+template <typename... Args>
+using wprepared_format_t =
+    basic_prepared_format_t<std::wstring, parts_container<wchar_t>, Args...>;
+
 #endif
 
 #if FMT_USE_CONSTEXPR
