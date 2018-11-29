@@ -410,7 +410,7 @@ void check_prepared_parts_type(Format format) {
   typedef fmt::internal::compiletime_prepared_parts_type_provider<decltype(
       format)>
       provider;
-  typedef typename provider::format_parts_array<EXPECTED_PARTS_COUNT>
+  typedef typename provider::template format_parts_array<EXPECTED_PARTS_COUNT>
       expected_parts_type;
   static_assert(
       std::is_same<typename provider::type, expected_parts_type>::value,

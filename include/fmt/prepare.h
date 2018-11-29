@@ -732,25 +732,6 @@ auto do_prepare(const Format &format)
 #endif
 } // namespace internal
 
-#if FMT_USE_ALIAS_TEMPLATES
-
-template <typename Char, typename Container = std::vector<format_part<Char>>>
-using parts_container = internal::parts_container<Char, Container>;
-
-template <typename Format, typename PreparedPartsContainer, typename... Args>
-using basic_prepared_format =
-    internal::basic_prepared_format<Format, PreparedPartsContainer, Args...>;
-
-template <typename... Args>
-using prepared_format =
-    basic_prepared_format<std::string, parts_container<char>, Args...>;
-
-template <typename... Args>
-using wprepared_format =
-    basic_prepared_format<std::wstring, parts_container<wchar_t>, Args...>;
-
-#else
-
 template <typename Char, typename Container = std::vector<format_part<Char>>>
 struct parts_container {
   typedef internal::parts_container<Char, Container> type;
@@ -773,6 +754,24 @@ template <typename... Args> struct wprepared_format {
                                      typename parts_container<wchar_t>::type,
                                      Args...>::type type;
 };
+
+#if FMT_USE_ALIAS_TEMPLATES
+
+template <typename Char, typename Container = std::vector<format_part<Char>>>
+using parts_container_t = typename parts_container<Char, Container>::type;
+
+template <typename Format, typename PreparedPartsContainer, typename... Args>
+using basic_prepared_format_t =
+    typename basic_prepared_format<Format, PreparedPartsContainer, Args...>::type;
+
+template <typename... Args>
+using prepared_format_t =
+    basic_prepared_format_t<std::string, parts_container<char>, Args...>;
+
+template <typename... Args>
+using wprepared_format_t =
+    basic_prepared_format_t<std::wstring, parts_container<wchar_t>, Args...>;
+
 #endif
 
 #if FMT_USE_CONSTEXPR
