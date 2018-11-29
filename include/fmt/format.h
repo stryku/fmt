@@ -3883,12 +3883,11 @@ operator"" _a(const wchar_t *s, std::size_t) { return {s}; }
 FMT_END_NAMESPACE
 
 #define FMT_STRING(s) [] { \
-    typedef typename std::remove_cv<std::remove_pointer< \
-      typename std::decay<decltype(s)>::type>::type>::type ct; \
     struct str : fmt::compile_string { \
-      typedef ct char_type; \
-      FMT_CONSTEXPR operator fmt::basic_string_view<ct>() const { \
-        return {s, sizeof(s) / sizeof(ct) - 1}; \
+    typedef typename std::remove_cv<std::remove_pointer< \
+      typename std::decay<decltype(s)>::type>::type>::type char_type; \
+      FMT_CONSTEXPR operator fmt::basic_string_view<char_type>() const { \
+        return {s, sizeof(s) / sizeof(char_type) - 1}; \
       } \
     }; \
     return str{}; \
