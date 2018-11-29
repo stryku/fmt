@@ -238,8 +238,8 @@ TEST(PrepareTest, FormatPreparationHandler_OnText_AddsPartWithText) {
   fmt::internal::format_preparation_handler<char, parts_mock> handler(format,
                                                                       parts);
 
-  const auto expected_text =
-      fmt::internal::string_view_metadata(0, format.size());
+  const auto expected_text = fmt::internal::string_view_metadata(
+      0u, static_cast<unsigned>(format.size()));
   EXPECT_CALL(parts, add(format_part(expected_text)));
 
   handler.on_text(format.begin(), format.end());
@@ -410,7 +410,7 @@ void check_prepared_parts_type(Format format) {
   typedef fmt::internal::compiletime_prepared_parts_type_provider<decltype(
       format)>
       provider;
-  typedef typename provider::format_parts_array<EXPECTED_PARTS_COUNT>
+  typedef typename provider::template format_parts_array<EXPECTED_PARTS_COUNT>
       expected_parts_type;
   static_assert(
       std::is_same<typename provider::type, expected_parts_type>::value,

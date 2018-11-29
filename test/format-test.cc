@@ -700,12 +700,11 @@ FMT_BEGIN_NAMESPACE
 template <>
 struct formatter<Date> {
   template <typename ParseContext>
-  FMT_CONSTEXPR formatter_parse_result<typename ParseContext::iterator>
-  parse(ParseContext &ctx) {
+  FMT_CONSTEXPR auto parse(ParseContext &ctx) -> decltype(ctx.begin()) {
     auto it = ctx.begin();
     if (*it == 'd')
       ++it;
-    return {true, it};
+    return it;
   }
 
   auto format(const Date &d, format_context &ctx) -> decltype(ctx.out()) {

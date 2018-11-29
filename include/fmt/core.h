@@ -70,13 +70,6 @@
 #define FMT_CONSTEXPR_DECL const
 #endif
 
-// Check whether we can use unrestricted unions (e.g. unions with non-PODs
-// members).
-#ifndef FMT_USE_UNRESTRICTED_UNIONS
-# define FMT_USE_UNRESTRICTED_UNIONS                                            \
-  (FMT_MSC_VER >= 1900 || FMT_GCC_VERSION >= 406)
-#endif
-
 #ifndef FMT_USE_CONSTEXPR11
 # define FMT_USE_CONSTEXPR11 \
     (FMT_USE_CONSTEXPR || FMT_GCC_VERSION >= 406 || FMT_MSC_VER >= 1900)
@@ -485,13 +478,6 @@ template <
 FMT_CONSTEXPR basic_string_view<typename S::char_type>
   to_string_view(const S &s) { return s; }
 
-template <typename It> struct formatter_parse_result {
-  FMT_CONSTEXPR formatter_parse_result(bool s, It stopped)
-      : succeed(s), stopped_at(stopped) {}
-  bool succeed;
-  It stopped_at;
-};
-
 template <typename Context>
 class basic_format_arg;
 
@@ -570,7 +556,7 @@ struct string_value {
 template <typename Context>
 struct custom_value {
   const void *value;
-  bool (*format)(const void *arg, Context &ctx);
+  void (*format)(const void *arg, Context &ctx);
 };
 
 // A formatting argument value.
@@ -629,19 +615,15 @@ class value {
  private:
   // Formats an argument of a custom type, such as a user-defined class.
    template <typename T>
-   static bool format_custom_arg(const void *arg, Context &ctx) {
+   static void format_custom_arg(const void *arg, Context &ctx) {
      // Get the formatter type through the context to allow different contexts
      // have different extension points, e.g. `formatter<T>` for `format` and
      // `printf_formatter<T>` for `printf`.
      typename Context::template formatter_type<T>::type f;
      auto &&parse_ctx = ctx.parse_context();
-     const auto parsing_result = f.parse(parse_ctx);
-     if (!parsing_result.succeed) {
-       return false;
-     }
-     parse_ctx.advance_to(parsing_result.stopped_at);
+     const auto stopped_at = f.parse(parse_ctx);
+     parse_ctx.advance_to(stopped_at);
      ctx.advance_to(f.format(*static_cast<const T *>(arg), ctx));
-     return true;
   }
 };
 
@@ -817,9 +799,7 @@ class basic_format_arg {
    public:
     explicit handle(internal::custom_value<Context> custom): custom_(custom) {}
 
-    bool format(Context &ctx) const {
-      return custom_.format(custom_.value, ctx);
-    }
+    void format(Context &ctx) const { custom_.format(custom_.value, ctx); }
 
   private:
     internal::custom_value<Context> custom_;

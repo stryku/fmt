@@ -148,7 +148,8 @@ public:
     const auto runtime_format_str =
         get_runtime_format(std::forward<Format>(format_str));
     auto formatter = fmt::prepare<Args...>(runtime_format_str);
-    return formatter.format_to_n(std::forward<Out>(out), n, args...);
+    return formatter.format_to_n(std::forward<Out>(out),
+                                 static_cast<unsigned>(n), args...);
   }
 
   template <typename Format, typename... Args>
@@ -210,7 +211,8 @@ struct CompiletimePreparedFormatWrapper {
                           const Args &... args)
       -> fmt::format_to_n_result<Out> {
     auto formatter = fmt::prepare<Args...>(std::forward<Format>(format_str));
-    return formatter.format_to_n(std::forward<Out>(out), n, args...);
+    return formatter.format_to_n(std::forward<Out>(out),
+                                 static_cast<unsigned>(n), args...);
   }
 };
 
@@ -1372,13 +1374,12 @@ TYPED_TEST(FormatterTest, FormatStdStringView) {
 FMT_BEGIN_NAMESPACE
 template <> struct formatter<Date> {
   template <typename ParseContext>
-  FMT_CONSTEXPR formatter_parse_result<typename ParseContext::iterator>
-  parse(ParseContext &ctx) {
+  FMT_CONSTEXPR auto parse(ParseContext &ctx) -> decltype(ctx.begin()) {
     auto it = ctx.begin();
     if (*it == 'd') {
-      return {true, ++it};
+      return ++it;
     }
-    return {false, it};
+    return it;
   }
 
   auto format(const Date &d, format_context &ctx) -> decltype(ctx.out()) {
