@@ -203,8 +203,8 @@ public:
   }
 
 private:
-  basic_string_view<Char> format_;
   PartsContainer &parts_;
+  basic_string_view<Char> format_;
   basic_parse_context<Char> parse_context_;
 };
 
@@ -401,7 +401,7 @@ private:
     }
 
     FMT_CONSTEXPR void on_arg_id() { ++counter_; }
-    FMT_CONSTEXPR void on_arg_id(unsigned id) { ++counter_; }
+    FMT_CONSTEXPR void on_arg_id(unsigned) { ++counter_; }
     FMT_CONSTEXPR void on_arg_id(basic_string_view<char_type>) { ++counter_; }
 
     FMT_CONSTEXPR void on_replacement_field(const char_type *) {}
@@ -410,7 +410,7 @@ private:
       return find_matching_brace(pointer_from(it));
     }
 
-    FMT_CONSTEXPR void on_error(const char *message) {}
+    FMT_CONSTEXPR void on_error(const char *) {}
 
     FMT_CONSTEXPR unsigned result() const { return counter_; }
 
