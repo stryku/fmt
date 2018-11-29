@@ -70,13 +70,6 @@
 #define FMT_CONSTEXPR_DECL const
 #endif
 
-// Check whether we can use unrestricted unions (e.g. unions with non-PODs
-// members).
-#ifndef FMT_USE_UNRESTRICTED_UNIONS
-# define FMT_USE_UNRESTRICTED_UNIONS                                            \
-  (FMT_MSC_VER >= 1900 || FMT_GCC_VERSION >= 406)
-#endif
-
 #ifndef FMT_USE_CONSTEXPR11
 # define FMT_USE_CONSTEXPR11 \
     (FMT_USE_CONSTEXPR || FMT_GCC_VERSION >= 406 || FMT_MSC_VER >= 1900)
@@ -563,6 +556,10 @@ FMT_CONSTEXPR bool is_arithmetic(type t) {
 
 template <typename Char>
 struct string_value {
+  // If compiler supports constexpr, a struct needs to have a constexpr ctor. If compiler doesn't support unrestricted unions, ctor is forbidden in a struct that is a member of such union.
+#if FMT_USE_CONSTEXPR
+  //FMT_CONSTEXPR string_value(const Char *v = FMT_NULL, std::size_t s = 0u) : value(v), size(s) {}
+#endif
   const Char *value;
   std::size_t size;
 };

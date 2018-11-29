@@ -81,6 +81,13 @@
 # define FMT_SECURE_SCL 0
 #endif
 
+// Check whether we can use unrestricted unions (e.g. unions with non-PODs
+// members).
+#ifndef FMT_USE_UNRESTRICTED_UNIONS
+# define FMT_USE_UNRESTRICTED_UNIONS                                            \
+  (FMT_MSC_VER >= 1900 || FMT_GCC_VERSION >= 406 || FMT_CLANG_VERSION >= 303)
+#endif
+
 #if FMT_SECURE_SCL
 # include <iterator>
 #endif
@@ -1849,10 +1856,9 @@ template <typename Char, typename Name> struct arg_ref {
   typedef Char char_type;
 
   FMT_CONSTEXPR arg_ref() : kind(NONE), val() {}
-  FMT_CONSTEXPR explicit arg_ref(unsigned index) : kind(INDEX), val() {
-    val.index = index;
+  FMT_CONSTEXPR explicit arg_ref(unsigned index) : kind(INDEX), val(index) {
   }
-  FMT_CONSTEXPR explicit arg_ref(Name nm) : kind(NAME), val() { val.name = nm; }
+  FMT_CONSTEXPR explicit arg_ref(Name nm) : kind(NAME), val(nm) { }
 
   FMT_CONSTEXPR arg_ref &operator=(unsigned idx) {
     kind = INDEX;
@@ -1866,8 +1872,9 @@ template <typename Char, typename Name> struct arg_ref {
 #else
   struct value {
 #endif
-    // Default ctor to satisfy constexpr
     FMT_CONSTEXPR value() : index(0u) {}
+    FMT_CONSTEXPR value(unsigned id) : index(id) {}
+    FMT_CONSTEXPR value(Name n) : name(n) {}
 
     unsigned index;
     Name name; // This is not string_view because of gcc 4.4.
@@ -3319,11 +3326,11 @@ public:
   parse(ParseContext &ctx) {
     auto it = internal::null_terminating_iterator<Char>(ctx);
 
-    typedef fmt::internal::dynamic_arg_ref_creator<ParseContext> specs_creator;
+    typedef fmt::internal::dynamic_arg_ref_creator<ParseContext> arg_ref_creator;
     typedef fmt::internal::dynamic_specs_handler<dynamic_specs, ParseContext,
-                                                 specs_creator>
+                                                 arg_ref_creator>
         handler_type;
-    specs_creator creator(ctx);
+    arg_ref_creator creator(ctx);
     handler_type handler(specs_, ctx, creator);
 
     // Checks are deferred to formatting time when the argument type is known.

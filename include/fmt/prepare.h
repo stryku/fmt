@@ -83,28 +83,23 @@ public:
   };
 
   FMT_CONSTEXPR format_part()
-      : which(which_value::argument_id), end_of_argument_id(0u) {
-    val.arg_id = 0u;
+      : which(which_value::argument_id), end_of_argument_id(0u), val(0u) {
   }
 
   FMT_CONSTEXPR format_part(internal::string_view_metadata text)
-      : which(which_value::text), end_of_argument_id(0u) {
-    val.text = text;
+      : which(which_value::text), end_of_argument_id(0u), val(text) {
   }
 
   FMT_CONSTEXPR format_part(unsigned id)
-      : which(which_value::argument_id), end_of_argument_id(0u) {
-    val.arg_id = id;
+      : which(which_value::argument_id), end_of_argument_id(0u), val(id) {
   }
 
   FMT_CONSTEXPR format_part(named_argument_id arg_id)
-      : which(which_value::named_argument_id), end_of_argument_id(0u) {
-    val.named_arg_id = arg_id.id;
+      : which(which_value::named_argument_id), end_of_argument_id(0u), val(arg_id) {
   }
 
   FMT_CONSTEXPR format_part(specification spec)
-      : which(which_value::specification), end_of_argument_id(0u) {
-    val.spec = spec;
+      : which(which_value::specification), end_of_argument_id(0u), val(spec) {
   }
 
   enum class which_value {
@@ -122,6 +117,10 @@ public:
   struct value {
 #endif
     FMT_CONSTEXPR value() : arg_id(0u) {}
+    FMT_CONSTEXPR value(unsigned id) : arg_id(id) {}
+    FMT_CONSTEXPR value(named_argument_id named_id) : named_arg_id(named_id.id) {}
+    FMT_CONSTEXPR value(internal::string_view_metadata t) : text(t) {}
+    FMT_CONSTEXPR value(specification s) : spec(s) {}
     unsigned arg_id;
     internal::string_view_metadata named_arg_id;
     internal::string_view_metadata text;
