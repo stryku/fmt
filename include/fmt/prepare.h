@@ -241,8 +241,8 @@ public:
   typedef format_part<char_type> format_part_t;
   typedef internal::checked_args<Format, Args...> checked_args;
 
-  prepared_format(const Format &f)
-      : format_(f), parts_provider_(to_string_view(f)) {}
+  prepared_format(Format f)
+      : format_(std::move(f)), parts_provider_(to_string_view(format_)) {}
 
   prepared_format() = delete;
 
@@ -345,9 +345,9 @@ private:
         typedef arg_ref_getter<decltype(specs.width_ref)> getter;
 
         handle_dynamic_spec<internal::width_checker>(
-            specs.width_, getter(specs.width_ref, format_), ctx);
+            specs.width_, getter(specs.width_ref, format_view), ctx);
         handle_dynamic_spec<internal::precision_checker>(
-            specs.precision, getter(specs.precision_ref, format_), ctx);
+            specs.precision, getter(specs.precision_ref, format_view), ctx);
 
         // Custom type check will be handled by custom formatter while
         // parsing/formatting.
@@ -546,6 +546,10 @@ struct compiletime_parts_provider {
 
 template <typename PartsContainer>
 struct parts_container_concept_check : std::true_type {
+
+    static_assert(std::is_copy_constructible<PartsContainer>::value, "PartsContainer is not copy constructible");
+    static_assert(std::is_move_constructible<PartsContainer>::value, "PartsContainer is not move constructible");
+
   template <typename T, typename = void>
   struct has_format_part_type : std::false_type {};
   template <typename T>
@@ -556,48 +560,50 @@ struct parts_container_concept_check : std::true_type {
   static_assert(has_format_part_type<PartsContainer>::value,
                 "PartsContainer doesn't provide format_part_type typedef");
 
-  template <typename T, typename = void> struct has_add : std::false_type {};
-  template <typename T>
-  struct has_add<T, typename void_<decltype(declval<T>().add(
-                        declval<typename T::format_part_type>()))>::type>
-      : std::true_type {};
+  struct check_second {};
+  struct check_first : check_second {};
 
-  static_assert(has_add<PartsContainer>::value,
+  template <typename T>
+  static std::false_type has_add_check(check_second);
+  template <typename T>
+  static decltype(declval<T>().add(declval<typename T::format_part_type>()), std::true_type()) has_add_check(check_first);
+  typedef decltype(has_add_check<PartsContainer>(check_first())) has_add;
+  static_assert(has_add::value,
                 "PartsContainer doesn't provide add() method");
 
-  template <typename T, typename = void> struct has_last : std::false_type {};
   template <typename T>
-  struct has_last<T, typename void_<decltype(declval<T>().last())>::type>
-      : std::true_type {};
-
-  static_assert(has_last<PartsContainer>::value,
+  static std::false_type has_last_check(check_second);
+  template <typename T>
+  static decltype(declval<T>().last(), std::true_type()) has_last_check(check_first);
+  typedef decltype(has_last_check<PartsContainer>(check_first())) has_last;
+  static_assert(has_last::value,
                 "PartsContainer doesn't provide last() method");
 
-  template <typename T, typename = void>
-  struct has_substitute_last : std::false_type {};
   template <typename T>
-  struct has_substitute_last<
-      T, typename void_<decltype(declval<T>().substitute_last(
-             declval<typename T::format_part_type>()))>::type>
-      : std::true_type {};
-
-  static_assert(has_substitute_last<PartsContainer>::value,
-                "PartsContainer doesn't provide substitute_last() method");
-
-  template <typename T, typename = void> struct has_begin : std::false_type {};
+  static std::false_type has_substitute_last_check(check_second);
   template <typename T>
-  struct has_begin<T, typename void_<decltype(declval<T>().begin())>::type>
-      : std::true_type {};
+  static decltype(declval<T>().substitute_last(
+	  declval<typename T::format_part_type>()), std::true_type()) has_substitute_last_check(check_first);
+  typedef decltype(has_substitute_last_check<PartsContainer>(check_first())) has_substitute_last;
+  static_assert(has_substitute_last::value,
+	  "PartsContainer doesn't provide substitute_last() method");
 
-  static_assert(has_begin<PartsContainer>::value,
-                "PartsContainer doesn't provide begin() method");
-
-  template <typename T, typename = void> struct has_end : std::false_type {};
   template <typename T>
-  struct has_end<T, typename void_<decltype(declval<T>().end())>::type>
-      : std::true_type {};
+  static std::false_type has_begin_check(check_second);
+  template <typename T>
+  static decltype(
+	  declval<T>().begin(), std::true_type()) has_begin_check(check_first);
+  typedef decltype(has_begin_check<PartsContainer>(check_first())) has_begin;
+  static_assert(has_begin::value,
+	  "PartsContainer doesn't provide begin() method");
 
-  static_assert(has_end<PartsContainer>::value,
+  template <typename T>
+  static std::false_type has_end_check(check_second);
+  template <typename T>
+  static decltype(
+	  declval<T>().end(), std::true_type()) has_end_check(check_first);
+  typedef decltype(has_end_check<PartsContainer>(check_first())) has_end;
+  static_assert(has_end::value,
                 "PartsContainer doesn't provide end() method");
 };
 
@@ -625,19 +631,16 @@ struct basic_prepared_format {
       type;
 };
 
-template <typename Format> struct runtime_format {
-  typedef std::basic_string<FMT_CHAR(Format)> type;
-};
+template <typename Char>
+std::basic_string<Char> to_runtime_format(basic_string_view<Char> format)
+{
+    return std::basic_string<Char>(format.begin(), format.size());
+}
 
-template <typename Format>
-auto to_runtime_format(Format &&format) ->
-    typename runtime_format<Format>::type {
-  typedef basic_string_view<FMT_CHAR(Format)> view_format;
-  typedef typename runtime_format<Format>::type runtime_format;
-  const view_format view = format;
-  runtime_format f;
-  f.assign(view.begin(), view.size());
-  return f;
+template <typename Char>
+std::basic_string<Char> to_runtime_format(const Char* format)
+{
+    return std::basic_string<Char>(format);
 }
 
 template <typename Char, typename Container = std::vector<format_part<Char>>>
@@ -673,17 +676,16 @@ private:
   Container parts_;
 };
 
-// Delegate preparing to preparator, to take advantage of partial
+// Delegate preparing to preparator, to take advantage of a partial
 // specialization.
 template <typename Format, typename... Args> struct preparator {
   typedef parts_container<FMT_CHAR(Format)> container;
-  typedef typename basic_prepared_format<typename runtime_format<Format>::type,
+  typedef typename basic_prepared_format<Format,
                                          container,
                                          Args...>::type prepared_format_type;
 
-  static auto prepare(const Format &format) -> prepared_format_type {
-    auto runtime_format = to_runtime_format(format);
-    return prepared_format_type(std::move(runtime_format));
+  static auto prepare(Format format) -> prepared_format_type {
+    return prepared_format_type(std::move(format));
   }
 };
 
@@ -694,9 +696,8 @@ struct preparator<PassedFormat, prepared_format<PreparedFormatFormat,
   typedef prepared_format<PreparedFormatFormat, PartsContainer, Args...>
       prepared_format_type;
 
-  static auto prepare(const PassedFormat &format) -> prepared_format_type {
-    auto runtime_format = to_runtime_format(format);
-    return prepared_format_type(std::move(runtime_format));
+  static auto prepare(PassedFormat format) -> prepared_format_type {
+    return prepared_format_type(std::move(format));
   }
 };
 
@@ -711,8 +712,8 @@ template <typename Format> struct format_tag {
 
 #if FMT_USE_CONSTEXPR
 template <typename Format, typename... Args>
-auto do_prepare(runtime_format_tag, const Format &format) {
-  return preparator<Format, Args...>::prepare(format);
+auto do_prepare(runtime_format_tag, Format format) {
+  return preparator<Format, Args...>::prepare(std::move(format));
 }
 
 template <typename Format, typename... Args>
@@ -774,18 +775,37 @@ using wprepared_format_t =
 #if FMT_USE_CONSTEXPR
 
 template <typename... Args, typename Format>
-FMT_CONSTEXPR auto prepare(const Format &format) {
+FMT_CONSTEXPR auto prepare(Format format) {
   return internal::do_prepare<Format, Args...>(
-      typename internal::format_tag<Format>::type{}, format);
+      typename internal::format_tag<Format>::type{}, std::move(format));
 }
 #else
 
 template <typename... Args, typename Format>
-auto prepare(const Format &format) ->
+auto prepare(Format format) ->
     typename internal::preparator<Format, Args...>::prepared_format_type {
-  return internal::preparator<Format, Args...>::prepare(format);
+  return internal::preparator<Format, Args...>::prepare(std::move(format));
 }
 #endif
+
+template <typename... Args, typename Char>
+auto prepare(const Char* format) -> typename internal::preparator<std::basic_string<Char>, Args...>::prepared_format_type
+{
+    return prepare<Args...>(internal::to_runtime_format(format));
+}
+
+template <typename... Args, typename Char, unsigned N>
+auto prepare(const Char(format)[N]) -> typename internal::preparator<std::basic_string<Char>, Args...>::prepared_format_type
+{
+    const auto view = basic_string_view<Char>(format, N);
+    return prepare<Args...>(internal::to_runtime_format(view));
+}
+
+template <typename... Args, typename Char>
+auto prepare(basic_string_view<Char> format) -> typename internal::preparator<std::basic_string<Char>, Args...>::prepared_format_type
+{
+    return prepare<Args...>(internal::to_runtime_format(format));
+}
 
 FMT_END_NAMESPACE
 
