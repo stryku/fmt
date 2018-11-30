@@ -1957,7 +1957,7 @@ struct string_view_metadata {
   template <typename Char>
   FMT_CONSTEXPR string_view_metadata(basic_string_view<Char> primary_string,
                                      basic_string_view<Char> view)
-      : offset_(view.data() - primary_string.data()), size_(view.size()) {}
+      : offset_(static_cast<unsigned>(view.data() - primary_string.data())), size_(static_cast<unsigned>(view.size())) {}
   FMT_CONSTEXPR string_view_metadata(unsigned offset, unsigned size)
       : offset_(offset), size_(size) {}
   template <typename S>
@@ -3419,7 +3419,8 @@ public:
     internal::custom_formatter<Char, Context> f(context_);
     const auto formatting_result = visit_format_arg(f, arg);
     if (formatting_result.handled) {
-      if (!formatting_result.formatted_successfully) {
+        if (*context_.parse_context().begin() != '}') {
+            //if (!formatting_result.formatted_successfully) {
         context_.error_handler().on_error("unknown format specifier");
       }
       return;
@@ -3473,7 +3474,13 @@ struct format_handler : internal::error_handler {
     internal::custom_formatter<Char, Context> f(context);
     const auto formatting_result = visit_format_arg(f, arg);
     if (formatting_result.handled)
-      return iterator(parse_ctx);
+    {
+        if (!formatting_result.formatted_successfully)
+        {
+            on_error("value has not been formatted succesfully");
+        }
+        return iterator(parse_ctx);
+    }
     basic_format_specs<Char> specs;
     using internal::specs_handler;
     internal::specs_check_handler<specs_handler<Context>> handler(

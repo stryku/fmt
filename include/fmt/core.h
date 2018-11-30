@@ -633,9 +633,9 @@ class value {
      typename Context::template formatter_type<T>::type f;
      auto &&parse_ctx = ctx.parse_context();
      const auto parsing_result = f.parse(parse_ctx);
-     if (!parsing_result.succeed) {
-       return false;
-     }
+     //if (!parsing_result.succeed) {
+       //return false;
+     //}
      parse_ctx.advance_to(parsing_result.stopped_at);
      ctx.advance_to(f.format(*static_cast<const T *>(arg), ctx));
      return true;

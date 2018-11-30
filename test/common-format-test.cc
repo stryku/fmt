@@ -148,7 +148,7 @@ public:
     const auto runtime_format_str =
         get_runtime_format(std::forward<Format>(format_str));
     auto formatter = fmt::prepare<Args...>(runtime_format_str);
-    return formatter.format_to_n(std::forward<Out>(out), n, args...);
+    return formatter.format_to_n(std::forward<Out>(out), static_cast<unsigned>(n), args...);
   }
 
   template <typename Format, typename... Args>
@@ -210,7 +210,7 @@ struct CompiletimePreparedFormatWrapper {
                           const Args &... args)
       -> fmt::format_to_n_result<Out> {
     auto formatter = fmt::prepare<Args...>(std::forward<Format>(format_str));
-    return formatter.format_to_n(std::forward<Out>(out), n, args...);
+    return formatter.format_to_n(std::forward<Out>(out), static_cast<unsigned>(n), args...);
   }
 };
 

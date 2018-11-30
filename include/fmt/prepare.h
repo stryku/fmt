@@ -142,8 +142,8 @@ public:
       : parts_(parts), format_(format), parse_context_(format) {}
 
   FMT_CONSTEXPR void on_text(const Char *begin, const Char *end) {
-    const auto offset = begin - format_.data();
-    const auto size = end - begin;
+    const auto offset = static_cast<unsigned>(begin - format_.data());
+    const auto size = static_cast<unsigned>(end - begin);
     parts_.add(part(string_view_metadata(offset, size)));
   }
 
@@ -164,12 +164,12 @@ public:
 
   FMT_CONSTEXPR void on_replacement_field(const Char *ptr) {
     auto last_part = parts_.last();
-    last_part.end_of_argument_id = ptr - format_.begin();
+    last_part.end_of_argument_id = static_cast<unsigned>(ptr - format_.begin());
     parts_.substitute_last(last_part);
   }
 
   FMT_CONSTEXPR const Char *on_format_specs(iterator it) {
-    const auto specs_offset = pointer_from(it) - format_.begin();
+    const auto specs_offset = to_unsigned(pointer_from(it) - format_.begin());
 
     typedef internal::prepared_format_specs<Char> prepared_specs;
     typedef basic_parse_context<Char> parse_context;
@@ -195,7 +195,7 @@ public:
     specs.parsed_specs = parsed_specs;
 
     auto new_part = part(specs);
-    new_part.end_of_argument_id = specs_offset;
+    new_part.end_of_argument_id = static_cast<unsigned>(specs_offset);
 
     parts_.substitute_last(new_part);
 
@@ -249,7 +249,7 @@ public:
 
   prepared_format() = delete;
 
-  unsigned formatted_size(const Args &... args) const {
+  std::size_t formatted_size(const Args &... args) const {
     const auto it = this->format_to(counting_iterator<char_type>(), args...);
     return it.count();
   }

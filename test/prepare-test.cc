@@ -239,7 +239,7 @@ TEST(PrepareTest, FormatPreparationHandler_OnText_AddsPartWithText) {
                                                                       parts);
 
   const auto expected_text =
-      fmt::internal::string_view_metadata(0, format.size());
+      fmt::internal::string_view_metadata(0u, static_cast<unsigned>(format.size()));
   EXPECT_CALL(parts, add(format_part(expected_text)));
 
   handler.on_text(format.begin(), format.end());
