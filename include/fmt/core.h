@@ -452,9 +452,9 @@ template <typename Char>
 inline basic_string_view<Char>
   to_string_view(basic_string_view<Char> s) { return s; }
 
-template <typename Char>
+template <typename Char, typename Traits, typename Allocator>
 inline basic_string_view<Char>
-  to_string_view(const std::basic_string<Char> &s) { return s; }
+to_string_view(const std::basic_string<Char, Traits, Allocator> &s) { return { s.data(), s.size() }; }
 
 template <typename Char>
 inline basic_string_view<Char> to_string_view(const Char *s) { return s; }
