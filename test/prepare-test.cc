@@ -435,7 +435,7 @@ TEST(PrepareTest, CompileTimePreparedPartsTypeProvider) {
 }
 #endif
 
-// Use the struct instead of a function to workaround GCC 4.4 'sorry,
+// Use the struct instead of a function to workaround GCC 4.4's 'sorry,
 // unimplemented: mangling template_id_expr' issue.
 template <typename... Args> struct copied_prepared_format_creator {
   static decltype(
@@ -547,4 +547,77 @@ TEST(PrepareTest, UserProvidedPartsContainer) {
   EXPECT_EQ("The answer is 42.", prepared.format("answer", 42));
   prepared = fmt::prepare<prepared_format>("40 {} 2 = {}");
   EXPECT_EQ("40 + 2 = 42", prepared.format("+", 42));
+}
+
+TEST(PrepareTest, PassConstCharPointerFormat)
+{
+    const char* c_format = "test {}";
+    const auto prepared = fmt::prepare<int>(c_format);
+    EXPECT_EQ("test 42", prepared.format(42));
+    const wchar_t* wc_format = L"test {}";
+    const auto wprepared = fmt::prepare<int>(wc_format);
+    EXPECT_EQ(L"test 42", wprepared.format(42));
+}
+
+TEST(PrepareTest, PassCharArrayFormat)
+{
+    char c_format[] = "test {}";
+    const auto prepared = fmt::prepare<int>(c_format);
+    EXPECT_EQ("test 42", prepared.format(42));
+    wchar_t wc_format[] = L"test {}";
+    const auto wprepared = fmt::prepare<int>(wc_format);
+    EXPECT_EQ(L"test 42", wprepared.format(42));
+}
+
+TEST(PrepareTest, PassConstCharArrayFormat)
+{
+    const char c_format[] = "test {}";
+    const auto prepared = fmt::prepare<int>(c_format);
+    EXPECT_EQ("test 42", prepared.format(42));
+    const wchar_t wc_format[] = L"test {}";
+    const auto wprepared = fmt::prepare<int>(wc_format);
+    EXPECT_EQ(L"test 42", wprepared.format(42));
+}
+
+TEST(PrepareTest, PassStringLiteralFormat)
+{
+    const auto prepared = fmt::prepare<int>("test {}");
+    EXPECT_EQ("test 42", prepared.format(42));
+    const auto wprepared = fmt::prepare<int>(L"test {}");
+    EXPECT_EQ(L"test 42", wprepared.format(42));
+}
+
+TEST(PrepareTest, PassStringViewFormat)
+{
+    const auto prepared = fmt::prepare<int>(fmt::basic_string_view<char>("test {}"));
+    EXPECT_EQ("test 42", prepared.format(42));
+    const auto wprepared = fmt::prepare<int>(fmt::basic_string_view<wchar_t>(L"test {}"));
+    EXPECT_EQ(L"test 42", wprepared.format(42));
+}
+
+TEST(PrepareTest, PassBasicStringFormat)
+{
+    const auto prepared = fmt::prepare<int>(std::string("test {}"));
+    EXPECT_EQ("test 42", prepared.format(42));
+    const auto wprepared = fmt::prepare<int>(std::wstring(L"test {}"));
+    EXPECT_EQ(L"test 42", wprepared.format(42));
+}
+
+#if FMT_USE_CONSTEXPR
+TEST(PrepareTest, PassCompileString)
+{
+    const auto prepared = fmt::prepare<int>(FMT_STRING("test {}"));
+    EXPECT_EQ("test 42", prepared.format(42));
+    const auto wprepared = fmt::prepare<int>(FMT_STRING(L"test {}"));
+    EXPECT_EQ(L"test 42", wprepared.format(42));
+}
+#endif
+
+
+TEST(PrepareTest, PassUserTypeFormat)
+{
+    class user_allocator : public std::allocator<char> {};
+    typedef std::basic_string<char, std::char_traits<char>, user_allocator> user_format;
+    const auto prepared = fmt::prepare<int>(user_format("test {}"));
+    EXPECT_EQ("test 42", prepared.format(42));
 }

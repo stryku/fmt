@@ -241,8 +241,8 @@ public:
   typedef format_part<char_type> format_part_t;
   typedef internal::checked_args<Format, Args...> checked_args;
 
-  prepared_format(const Format &f)
-      : format_(f), parts_provider_(to_string_view(f)) {}
+  prepared_format(Format f)
+      : format_(std::move(f)), parts_provider_(to_string_view(format_)) {}
 
   prepared_format() = delete;
 
@@ -345,9 +345,9 @@ private:
         typedef arg_ref_getter<decltype(specs.width_ref)> getter;
 
         handle_dynamic_spec<internal::width_checker>(
-            specs.width_, getter(specs.width_ref, format_), ctx);
+            specs.width_, getter(specs.width_ref, format_view), ctx);
         handle_dynamic_spec<internal::precision_checker>(
-            specs.precision, getter(specs.precision_ref, format_), ctx);
+            specs.precision, getter(specs.precision_ref, format_view), ctx);
 
         // Custom type check will be handled by custom formatter while
         // parsing/formatting.
@@ -625,19 +625,16 @@ struct basic_prepared_format {
       type;
 };
 
-template <typename Format> struct runtime_format {
-  typedef std::basic_string<FMT_CHAR(Format)> type;
-};
+template <typename Char>
+std::basic_string<Char> to_runtime_format(basic_string_view<Char> format)
+{
+    return std::basic_string<Char>(format.begin(), format.size());
+}
 
-template <typename Format>
-auto to_runtime_format(Format &&format) ->
-    typename runtime_format<Format>::type {
-  typedef basic_string_view<FMT_CHAR(Format)> view_format;
-  typedef typename runtime_format<Format>::type runtime_format;
-  const view_format view = format;
-  runtime_format f;
-  f.assign(view.begin(), view.size());
-  return f;
+template <typename Char>
+std::basic_string<Char> to_runtime_format(const Char* format)
+{
+    return std::basic_string<Char>(format);
 }
 
 template <typename Char, typename Container = std::vector<format_part<Char>>>
@@ -677,13 +674,12 @@ private:
 // specialization.
 template <typename Format, typename... Args> struct preparator {
   typedef parts_container<FMT_CHAR(Format)> container;
-  typedef typename basic_prepared_format<typename runtime_format<Format>::type,
+  typedef typename basic_prepared_format<Format,
                                          container,
                                          Args...>::type prepared_format_type;
 
-  static auto prepare(const Format &format) -> prepared_format_type {
-    auto runtime_format = to_runtime_format(format);
-    return prepared_format_type(std::move(runtime_format));
+  static auto prepare(Format format) -> prepared_format_type {
+    return prepared_format_type(std::move(format));
   }
 };
 
@@ -694,9 +690,8 @@ struct preparator<PassedFormat, prepared_format<PreparedFormatFormat,
   typedef prepared_format<PreparedFormatFormat, PartsContainer, Args...>
       prepared_format_type;
 
-  static auto prepare(const PassedFormat &format) -> prepared_format_type {
-    auto runtime_format = to_runtime_format(format);
-    return prepared_format_type(std::move(runtime_format));
+  static auto prepare(PassedFormat format) -> prepared_format_type {
+    return prepared_format_type(std::move(format));
   }
 };
 
@@ -711,8 +706,8 @@ template <typename Format> struct format_tag {
 
 #if FMT_USE_CONSTEXPR
 template <typename Format, typename... Args>
-auto do_prepare(runtime_format_tag, const Format &format) {
-  return preparator<Format, Args...>::prepare(format);
+auto do_prepare(runtime_format_tag, Format format) {
+  return preparator<Format, Args...>::prepare(std::move(format));
 }
 
 template <typename Format, typename... Args>
@@ -771,19 +766,38 @@ using wprepared_format_t =
 
 #endif
 
+template <typename... Args, typename Char>
+auto prepare(const Char* format)
+{
+    return prepare<Args...>(internal::to_runtime_format(format));
+}
+
+template <typename... Args, typename Char, unsigned N>
+auto prepare(const Char(format)[N])
+{
+    const auto view = basic_string_view<Char>(format, N);
+    return prepare<Args...>(internal::to_runtime_format(view));
+}
+
+template <typename... Args, typename Char>
+auto prepare(basic_string_view<Char> format)
+{
+    return prepare<Args...>(internal::to_runtime_format(format));
+}
+
 #if FMT_USE_CONSTEXPR
 
 template <typename... Args, typename Format>
-FMT_CONSTEXPR auto prepare(const Format &format) {
+FMT_CONSTEXPR auto prepare(Format format) {
   return internal::do_prepare<Format, Args...>(
-      typename internal::format_tag<Format>::type{}, format);
+      typename internal::format_tag<Format>::type{}, std::move(format));
 }
 #else
 
 template <typename... Args, typename Format>
-auto prepare(const Format &format) ->
+auto prepare(Format format) ->
     typename internal::preparator<Format, Args...>::prepared_format_type {
-  return internal::preparator<Format, Args...>::prepare(format);
+  return internal::preparator<Format, Args...>::prepare(std::move(format));
 }
 #endif
 
