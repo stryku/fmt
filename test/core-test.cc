@@ -51,9 +51,8 @@ FMT_BEGIN_NAMESPACE
 template <typename Char>
 struct formatter<test_struct, Char> {
   template <typename ParseContext>
-  formatter_parse_result<typename ParseContext::iterator>
-  parse(ParseContext &ctx) {
-    return {true, ctx.begin()};
+  auto parse(ParseContext &ctx) -> decltype(ctx.begin()) {
+    return ctx.begin();
   }
 
   typedef std::back_insert_iterator<basic_buffer<Char>> iterator;
@@ -216,9 +215,8 @@ struct custom_context {
   struct formatter_type {
     struct type {
       template <typename ParseContext>
-      fmt::formatter_parse_result<typename ParseContext::iterator>
-      parse(ParseContext &ctx) {
-        return {true, ctx.begin()};
+      auto parse(ParseContext &ctx) -> decltype(ctx.begin()) {
+        return ctx.begin();
       }
 
       const char *format(const T &, custom_context& ctx) {

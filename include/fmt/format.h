@@ -2333,8 +2333,7 @@ FMT_CONSTEXPR void parse_format_string(
 }
 
 template <typename T, typename ParseContext>
-FMT_CONSTEXPR formatter_parse_result<const typename ParseContext::char_type *>
-parse_format_specs(ParseContext &ctx) {
+FMT_CONSTEXPR auto parse_format_specs(ParseContext &ctx) -> decltype(ctx.begin()) {
   // GCC 7.2 requires initializer.
   formatter<T, typename ParseContext::char_type> f{};
   return f.parse(ctx);
@@ -2369,7 +2368,7 @@ class format_string_checker {
     auto p = pointer_from(it);
     context_.advance_to(p);
     return to_unsigned(arg_id_) < NUM_ARGS
-               ? parse_funcs_[arg_id_](context_).stopped_at
+               ? parse_funcs_[arg_id_](context_)
                : p;
   }
 
@@ -2387,8 +2386,7 @@ class format_string_checker {
   }
 
   // Format specifier parsing function.
-  typedef formatter_parse_result<const Char *> (*parse_func)(
-      parse_context_type &);
+  typedef const Char*(*parse_func)(parse_context_type &);
 
   int arg_id_;
   parse_context_type context_;
@@ -3223,8 +3221,7 @@ struct formatter<
   // Parses format specifiers stopping either at the end of the range or at the
   // terminating '}'.
   template <typename ParseContext>
-  FMT_CONSTEXPR formatter_parse_result<typename ParseContext::iterator>
-  parse(ParseContext &ctx) {
+  FMT_CONSTEXPR auto parse(ParseContext &ctx) -> decltype(ctx.begin()) {
     auto it = internal::null_terminating_iterator<Char>(ctx);
     typedef internal::dynamic_arg_ref_creator<ParseContext> specs_creator;
     typedef internal::dynamic_specs_handler<
@@ -3276,7 +3273,7 @@ struct formatter<
       // formatter specializations.
       break;
     }
-    return {true, pointer_from(it)};
+    return pointer_from(it);
   }
 
   template <typename FormatContext>
@@ -3322,8 +3319,7 @@ class dynamic_formatter {
 
 public:
   template <typename ParseContext>
-  formatter_parse_result<typename ParseContext::iterator>
-  parse(ParseContext &ctx) {
+  auto parse(ParseContext &ctx) -> decltype(ctx.begin()) {
     auto it = internal::null_terminating_iterator<Char>(ctx);
 
     typedef fmt::internal::dynamic_arg_ref_creator<ParseContext> arg_ref_creator;
@@ -3335,7 +3331,7 @@ public:
 
     // Checks are deferred to formatting time when the argument type is known.
     it = parse_format_specs(it, handler);
-    return {true, pointer_from(it)};
+    return pointer_from(it);
   }
 
   template <typename T, typename FormatContext>
@@ -3419,8 +3415,8 @@ public:
     internal::custom_formatter<Char, Context> f(context_);
     const auto formatting_result = visit_format_arg(f, arg);
     if (formatting_result.handled) {
-        if (*context_.parse_context().begin() != '}') {
-            //if (!formatting_result.formatted_successfully) {
+        const auto parsed_successfully = *context_.parse_context().begin() == '}';
+        if (!parsed_successfully) {
         context_.error_handler().on_error("unknown format specifier");
       }
       return;
@@ -3475,9 +3471,9 @@ struct format_handler : internal::error_handler {
     const auto formatting_result = visit_format_arg(f, arg);
     if (formatting_result.handled)
     {
-        if (!formatting_result.formatted_successfully)
-        {
-            on_error("value has not been formatted succesfully");
+        const auto parsed_successfully = *parse_ctx.begin() == '}';
+        if (!parsed_successfully) {
+            on_error("unknown format specifier");
         }
         return iterator(parse_ctx);
     }
@@ -3531,7 +3527,7 @@ struct formatter<arg_join<It, Char>, Char>:
     formatter<typename std::iterator_traits<It>::value_type, Char> {
   template <typename FormatContext>
   auto format(const arg_join<It, Char> &value, FormatContext &ctx)
-      -> decltype(ctx.out()) {
+      -> decltype(ctx.begin()) {
     typedef formatter<typename std::iterator_traits<It>::value_type, Char> base;
     auto it = value.begin;
     auto out = ctx.out();
