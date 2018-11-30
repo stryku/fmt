@@ -1603,30 +1603,21 @@ FMT_CONSTEXPR unsigned parse_nonnegative_int(
   return value;
 }
 
-struct formatter_result {
-  formatter_result(bool h, bool succeed)
-      : handled(h), formatted_successfully(succeed) {}
-  explicit formatter_result(bool h)
-      : handled(h), formatted_successfully(false) {}
-  bool handled;
-  bool formatted_successfully;
-};
-
 template <typename Char, typename Context>
-class custom_formatter : public function<formatter_result> {
+class custom_formatter : public function<bool> {
 private:
   Context &ctx_;
 
  public:
   explicit custom_formatter(Context &ctx): ctx_(ctx) {}
 
-  formatter_result
-  operator()(typename basic_format_arg<Context>::handle h) const {
-    return formatter_result(true, h.format(ctx_));
+  bool operator()(typename basic_format_arg<Context>::handle h) const {
+      h.format(ctx_);
+      return true;
   }
 
-  template <typename T> formatter_result operator()(T) const {
-    return formatter_result(false);
+  template <typename T> bool operator()(T) const {
+      return false;
   }
 };
 
@@ -3413,8 +3404,7 @@ public:
   void argument_with_specs(basic_format_arg<Context> arg,
                            basic_format_specs<Char> spec) {
     internal::custom_formatter<Char, Context> f(context_);
-    const auto formatting_result = visit_format_arg(f, arg);
-    if (formatting_result.handled) {
+    if (visit_format_arg(f, arg)) {
         const auto parsed_successfully = *context_.parse_context().begin() == '}';
         if (!parsed_successfully) {
         context_.error_handler().on_error("unknown format specifier");
@@ -3426,8 +3416,7 @@ public:
 
   void argument(basic_format_arg<Context> arg) {
     internal::custom_formatter<Char, Context> f(context_);
-    const auto formatting_result = visit_format_arg(f, arg);
-    if (!formatting_result.handled) {
+    if (!visit_format_arg(f, arg)) {
       context_.advance_to(visit_format_arg(ArgFormatter(context_), arg));
     }
   }
@@ -3468,8 +3457,7 @@ struct format_handler : internal::error_handler {
     auto &parse_ctx = context.parse_context();
     parse_ctx.advance_to(pointer_from(it));
     internal::custom_formatter<Char, Context> f(context);
-    const auto formatting_result = visit_format_arg(f, arg);
-    if (formatting_result.handled)
+    if (visit_format_arg(f, arg))
     {
         const auto parsed_successfully = *parse_ctx.begin() == '}';
         if (!parsed_successfully) {
