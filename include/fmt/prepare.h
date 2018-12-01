@@ -766,6 +766,22 @@ using wprepared_format_t =
 
 #endif
 
+#if FMT_USE_CONSTEXPR
+
+template <typename... Args, typename Format>
+FMT_CONSTEXPR auto prepare(Format format) {
+  return internal::do_prepare<Format, Args...>(
+      typename internal::format_tag<Format>::type{}, std::move(format));
+}
+#else
+
+template <typename... Args, typename Format>
+auto prepare(Format format) ->
+    typename internal::preparator<Format, Args...>::prepared_format_type {
+  return internal::preparator<Format, Args...>::prepare(std::move(format));
+}
+#endif
+
 template <typename... Args, typename Char>
 auto prepare(const Char* format)
 {
@@ -784,22 +800,6 @@ auto prepare(basic_string_view<Char> format)
 {
     return prepare<Args...>(internal::to_runtime_format(format));
 }
-
-#if FMT_USE_CONSTEXPR
-
-template <typename... Args, typename Format>
-FMT_CONSTEXPR auto prepare(Format format) {
-  return internal::do_prepare<Format, Args...>(
-      typename internal::format_tag<Format>::type{}, std::move(format));
-}
-#else
-
-template <typename... Args, typename Format>
-auto prepare(Format format) ->
-    typename internal::preparator<Format, Args...>::prepared_format_type {
-  return internal::preparator<Format, Args...>::prepare(std::move(format));
-}
-#endif
 
 FMT_END_NAMESPACE
 
