@@ -783,20 +783,20 @@ auto prepare(Format format) ->
 #endif
 
 template <typename... Args, typename Char>
-auto prepare(const Char* format)
+auto prepare(const Char* format) -> typename internal::preparator<std::basic_string<Char>, Args...>::prepared_format_type
 {
     return prepare<Args...>(internal::to_runtime_format(format));
 }
 
 template <typename... Args, typename Char, unsigned N>
-auto prepare(const Char(format)[N])
+auto prepare(const Char(format)[N]) -> typename internal::preparator<std::basic_string<Char>, Args...>::prepared_format_type
 {
     const auto view = basic_string_view<Char>(format, N);
     return prepare<Args...>(internal::to_runtime_format(view));
 }
 
 template <typename... Args, typename Char>
-auto prepare(basic_string_view<Char> format)
+auto prepare(basic_string_view<Char> format) -> typename internal::preparator<std::basic_string<Char>, Args...>::prepared_format_type
 {
     return prepare<Args...>(internal::to_runtime_format(format));
 }
