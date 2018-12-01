@@ -439,9 +439,9 @@ TEST(PrepareTest, CompileTimePreparedPartsTypeProvider) {
 // unimplemented: mangling template_id_expr' issue.
 template <typename... Args> struct copied_prepared_format_creator {
   static decltype(
-      fmt::prepare<Args...>(fmt::internal::declval<const std::string>()))
-  make(const std::string &format_str) {
-    auto prepared_format = fmt::prepare<Args...>(format_str);
+      fmt::prepare<Args...>(fmt::internal::declval<std::string>()))
+  make(std::string format_str) {
+    auto prepared_format = fmt::prepare<Args...>(std::move(format_str));
     auto copied_prepared_format = prepared_format;
     prepared_format = fmt::prepare<Args...>("");
 
@@ -640,7 +640,17 @@ struct user_allocator {
 
     void deallocate(pointer p, size_type cnt) {
         delete[] p;
-    }
+	}
+
+	void construct(pointer p, const value_type& val)
+	{
+		new (p)value_type(val);
+	}
+
+	void destroy(pointer p)
+	{
+		(*p).~value_type();
+	}
 
     bool operator==(const user_allocator& other) const { return true; }
     bool operator!=(const user_allocator& other) const { return false; }
