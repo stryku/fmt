@@ -28,6 +28,11 @@
 #ifndef FMT_PREPARE_H_
 #define FMT_PREPARE_H_
 
+#ifndef FMT_HAS_CONSTRUCTIBLE_TRAITS
+# define FMT_HAS_CONSTRUCTIBLE_TRAITS \
+   (FMT_GCC_VERSION >= 407 || FMT_CLANG_VERSION || FMT_MSC_VER)
+#endif
+
 #include "format.h"
 
 #include <vector>
@@ -547,8 +552,10 @@ struct compiletime_parts_provider {
 template <typename PartsContainer>
 struct parts_container_concept_check : std::true_type {
 
-    static_assert(std::is_copy_constructible<PartsContainer>::value, "PartsContainer is not copy constructible");
-    static_assert(std::is_move_constructible<PartsContainer>::value, "PartsContainer is not move constructible");
+#if FMT_HAS_CONSTRUCTIBLE_TRAITS
+  static_assert(std::is_copy_constructible<PartsContainer>::value, "PartsContainer is not copy constructible");
+  static_assert(std::is_move_constructible<PartsContainer>::value, "PartsContainer is not move constructible");
+#endif
 
   template <typename T, typename = void>
   struct has_format_part_type : std::false_type {};
