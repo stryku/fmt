@@ -546,6 +546,10 @@ struct compiletime_parts_provider {
 
 template <typename PartsContainer>
 struct parts_container_concept_check : std::true_type {
+
+    static_assert(std::is_copy_constructible<PartsContainer>::value, "PartsContainer is not copy constructible");
+    static_assert(std::is_move_constructible<PartsContainer>::value, "PartsContainer is not move constructible");
+
   template <typename T, typename = void>
   struct has_format_part_type : std::false_type {};
   template <typename T>
@@ -556,55 +560,49 @@ struct parts_container_concept_check : std::true_type {
   static_assert(has_format_part_type<PartsContainer>::value,
                 "PartsContainer doesn't provide format_part_type typedef");
 
-  struct check_as_second {};
-  struct check_as_first : check_as_second {};
+  struct check_second {};
+  struct check_first : check_second {};
 
   template <typename T>
-  static std::false_type has_add_check(check_as_second);
+  static std::false_type has_add_check(check_second);
   template <typename T>
-  static decltype(declval<T>().add(declval<typename T::format_part_type>()), std::true_type()) has_add_check(check_as_first);
-  typedef decltype(has_add_check<PartsContainer>(check_as_first())) has_add;
-
+  static decltype(declval<T>().add(declval<typename T::format_part_type>()), std::true_type()) has_add_check(check_first);
+  typedef decltype(has_add_check<PartsContainer>(check_first())) has_add;
   static_assert(has_add::value,
                 "PartsContainer doesn't provide add() method");
 
   template <typename T>
-  static std::false_type has_last_check(check_as_second);
+  static std::false_type has_last_check(check_second);
   template <typename T>
-  static decltype(declval<T>().last(), std::true_type()) has_last_check(check_as_first);
-  typedef decltype(has_last_check<PartsContainer>(check_as_first())) has_last;
-
+  static decltype(declval<T>().last(), std::true_type()) has_last_check(check_first);
+  typedef decltype(has_last_check<PartsContainer>(check_first())) has_last;
   static_assert(has_last::value,
                 "PartsContainer doesn't provide last() method");
 
-
   template <typename T>
-  static std::false_type has_substitute_last_check(check_as_second);
+  static std::false_type has_substitute_last_check(check_second);
   template <typename T>
   static decltype(declval<T>().substitute_last(
-	  declval<typename T::format_part_type>()), std::true_type()) has_substitute_last_check(check_as_first);
-  typedef decltype(has_substitute_last_check<PartsContainer>(check_as_first())) has_substitute_last;
-
+	  declval<typename T::format_part_type>()), std::true_type()) has_substitute_last_check(check_first);
+  typedef decltype(has_substitute_last_check<PartsContainer>(check_first())) has_substitute_last;
   static_assert(has_substitute_last::value,
 	  "PartsContainer doesn't provide substitute_last() method");
 
   template <typename T>
-  static std::false_type has_begin_check(check_as_second);
+  static std::false_type has_begin_check(check_second);
   template <typename T>
   static decltype(
-	  declval<T>().begin(), std::true_type()) has_begin_check(check_as_first);
-  typedef decltype(has_begin_check<PartsContainer>(check_as_first())) has_begin;
-
+	  declval<T>().begin(), std::true_type()) has_begin_check(check_first);
+  typedef decltype(has_begin_check<PartsContainer>(check_first())) has_begin;
   static_assert(has_begin::value,
 	  "PartsContainer doesn't provide begin() method");
 
   template <typename T>
-  static std::false_type has_end_check(check_as_second);
+  static std::false_type has_end_check(check_second);
   template <typename T>
   static decltype(
-	  declval<T>().end(), std::true_type()) has_end_check(check_as_first);
-  typedef decltype(has_end_check<PartsContainer>(check_as_first())) has_end;
-
+	  declval<T>().end(), std::true_type()) has_end_check(check_first);
+  typedef decltype(has_end_check<PartsContainer>(check_first())) has_end;
   static_assert(has_end::value,
                 "PartsContainer doesn't provide end() method");
 };
@@ -678,7 +676,7 @@ private:
   Container parts_;
 };
 
-// Delegate preparing to preparator, to take advantage of partial
+// Delegate preparing to preparator, to take advantage of a partial
 // specialization.
 template <typename Format, typename... Args> struct preparator {
   typedef parts_container<FMT_CHAR(Format)> container;
