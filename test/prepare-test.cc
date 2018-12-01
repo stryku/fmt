@@ -613,11 +613,42 @@ TEST(PrepareTest, PassCompileString)
 }
 #endif
 
+template <typename T>
+struct user_allocator {
+    typedef T value_type;
+    typedef value_type* pointer;
+    typedef const value_type* const_pointer;
+    typedef value_type& reference;
+    typedef const value_type& const_reference;
+    typedef std::size_t size_type;
+    typedef std::ptrdiff_t difference_type;
+
+    template<typename U>
+    struct rebind {
+        typedef user_allocator<U> other;
+    };
+
+    user_allocator() = default;
+    ~user_allocator() = default;
+    template <typename U>
+    user_allocator(const user_allocator<U>&) {}
+
+    pointer allocate(size_type cnt,
+                            typename std::allocator<void>::const_pointer = 0) {
+        return new value_type[cnt];
+    }
+
+    void deallocate(pointer p, size_type cnt) {
+        delete[] p;
+    }
+
+    bool operator==(const user_allocator& other) const { return true; }
+    bool operator!=(const user_allocator& other) const { return false; }
+};
 
 TEST(PrepareTest, PassUserTypeFormat)
 {
-    class user_allocator : public std::allocator<char> {};
-    typedef std::basic_string<char, std::char_traits<char>, user_allocator> user_format;
+    typedef std::basic_string<char, std::char_traits<char>, user_allocator<char>> user_format;
     const auto prepared = fmt::prepare<int>(user_format("test {}"));
     EXPECT_EQ("test 42", prepared.format(42));
 }
