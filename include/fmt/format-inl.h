@@ -353,21 +353,21 @@ class fp {
   typedef uint64_t significand_type;
 
   // All sizes are in bits.
-  static FMT_CONSTEXPR_DECL int char_size =
-      std::numeric_limits<unsigned char>::digits;
+  static FMT_CONSTEXPR_DECL const int char_size =
+    std::numeric_limits<unsigned char>::digits;
   // Subtract 1 to account for an implicit most significant bit in the
   // normalized form.
-  static FMT_CONSTEXPR_DECL int double_significand_size =
-      std::numeric_limits<double>::digits - 1;
-  static FMT_CONSTEXPR_DECL uint64_t implicit_bit = 1ull
-                                                    << double_significand_size;
+  static FMT_CONSTEXPR_DECL const int double_significand_size =
+    std::numeric_limits<double>::digits - 1;
+  static FMT_CONSTEXPR_DECL const uint64_t implicit_bit =
+      1ull << double_significand_size;
 
  public:
   significand_type f;
   int e;
 
-  static FMT_CONSTEXPR_DECL int significand_size =
-      sizeof(significand_type) * char_size;
+  static FMT_CONSTEXPR_DECL const int significand_size =
+    sizeof(significand_type) * char_size;
 
   fp(): f(0), e(0) {}
   fp(uint64_t f, int e): f(f), e(e) {}

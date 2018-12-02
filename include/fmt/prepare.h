@@ -51,30 +51,26 @@ struct format_part {
   struct argument_id {
     FMT_CONSTEXPR argument_id() : argument_id(0u) {}
 
-    FMT_CONSTEXPR argument_id(unsigned id) : which(which_arg_id::index), val() {
-      val.index = id;
-    }
+    FMT_CONSTEXPR argument_id(unsigned id)
+        : which(which_arg_id::index), val(id) {}
 
     FMT_CONSTEXPR argument_id(internal::string_view_metadata id)
-        : which(which_arg_id::named_index), val() {
-      val.named_index = id;
-    }
+        : which(which_arg_id::named_index), val(id) {}
 
     enum class which_arg_id { index, named_index };
 
     which_arg_id which;
 
-#if FMT_USE_UNRESTRICTED_UNIONS
-    union value {
-#else
-    struct value {
-#endif
-      // Default ctor to satisfy constexpr
+    FMT_UNRESTRICTED_UNION value {
       FMT_CONSTEXPR value() : index(0u) {}
+      FMT_CONSTEXPR value(unsigned id) : index(id) {}
+      FMT_CONSTEXPR value(internal::string_view_metadata id)
+          : named_index(id) {}
 
       unsigned index;
       internal::string_view_metadata named_index;
-    } val;
+    }
+    val;
   };
 
   struct specification {
@@ -114,11 +110,7 @@ struct format_part {
 
   which_value which;
   unsigned end_of_argument_id;
-#if FMT_USE_UNRESTRICTED_UNIONS
-  union value {
-#else
-  struct value {
-#endif
+  FMT_UNRESTRICTED_UNION value {
     FMT_CONSTEXPR value() : arg_id(0u) {}
     FMT_CONSTEXPR value(unsigned id) : arg_id(id) {}
     FMT_CONSTEXPR value(named_argument_id named_id)
@@ -129,7 +121,8 @@ struct format_part {
     internal::string_view_metadata named_arg_id;
     internal::string_view_metadata text;
     specification spec;
-  } val;
+  }
+  val;
 };
 
 namespace internal {
@@ -239,7 +232,7 @@ class parsed_specs_checker {
   }
 
  private:
-  speck_checker<ErrorHandler> checker_;
+  numeric_specs_checker<ErrorHandler> checker_;
 };
 
 template <typename Format, typename PreparedPartsProvider, typename... Args>
@@ -422,7 +415,7 @@ class compiletime_prepared_parts_type_provider {
 
    private:
     FMT_CONSTEXPR const char_type *find_matching_brace(const char_type *p) {
-      FMT_CONSTEXPR_DECL basic_string_view<char_type> text = Format{};
+      FMT_CONSTEXPR_DECL const basic_string_view<char_type> text = Format{};
       unsigned braces_counter{0u};
       for (; p != text.end(); ++p) {
         if (*p == '{') {
@@ -443,7 +436,7 @@ class compiletime_prepared_parts_type_provider {
   };
 
   static FMT_CONSTEXPR unsigned count_parts() {
-    FMT_CONSTEXPR_DECL auto text = to_string_view(Format{});
+    FMT_CONSTEXPR_DECL const auto text = to_string_view(Format{});
     count_handler handler;
     internal::parse_format_string</*IS_CONSTEXPR=*/true>(text, handler);
     return handler.result();
@@ -452,7 +445,7 @@ class compiletime_prepared_parts_type_provider {
 // Workaround for old compilers. Compiletime parts preparation will not be
 // performed with them anyway.
 #if FMT_USE_CONSTEXPR
-  static FMT_CONSTEXPR_DECL unsigned number_of_format_parts =
+  static FMT_CONSTEXPR_DECL const unsigned number_of_format_parts =
       compiletime_prepared_parts_type_provider::count_parts();
 #else
   static const unsigned number_of_format_parts = 0u;
@@ -548,7 +541,7 @@ struct compiletime_parts_provider {
   FMT_CONSTEXPR compiletime_parts_provider(basic_string_view<Char>) {}
 
   const PartsContainer &parts() const {
-    static FMT_CONSTEXPR_DECL PartsContainer prepared_parts =
+    static FMT_CONSTEXPR_DECL const PartsContainer prepared_parts =
         prepare_compiletime_parts<PartsContainer>(
             internal::to_string_view(Format{}));
 

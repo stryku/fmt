@@ -82,10 +82,13 @@
 #endif
 
 // Check whether we can use unrestricted unions (e.g. unions with non-PODs
-// members).
-#ifndef FMT_USE_UNRESTRICTED_UNIONS
-#define FMT_USE_UNRESTRICTED_UNIONS \
-  (FMT_MSC_VER >= 1900 || FMT_GCC_VERSION >= 406 || FMT_CLANG_VERSION >= 303)
+// members). If no, use struct.
+#ifndef FMT_UNRESTRICTED_UNION
+#if (FMT_MSC_VER >= 1900 || FMT_GCC_VERSION >= 406 || FMT_CLANG_VERSION >= 303)
+#define FMT_UNRESTRICTED_UNION union
+#else
+#define FMT_UNRESTRICTED_UNION struct
+#endif
 #endif
 
 #if FMT_SECURE_SCL
@@ -1210,10 +1213,11 @@ typedef basic_format_specs<char> format_specs;
 
 template <typename Char, typename ErrorHandler>
 FMT_CONSTEXPR unsigned basic_parse_context<Char, ErrorHandler>::next_arg_id() {
-  if (next_arg_id_ >= 0)
-    return internal::to_unsigned(next_arg_id_++);
-  on_error("cannot switch from manual to automatic argument indexing");
-  return 0;
+  if (is_indexing_arguments_manually()) {
+    on_error("cannot switch from manual to automatic argument indexing");
+    return 0;
+  }
+  return internal::to_unsigned(next_arg_id_++);
 }
 
 namespace internal {
@@ -1604,7 +1608,7 @@ FMT_CONSTEXPR unsigned parse_nonnegative_int(
 }
 
 template <typename Char, typename Context>
-class custom_formatter : public function<bool> {
+class custom_formatter: public function<bool> {
  private:
   Context &ctx_;
 
@@ -1617,9 +1621,7 @@ class custom_formatter : public function<bool> {
   }
 
   template <typename T>
-  bool operator()(T) const {
-    return false;
-  }
+  bool operator()(T) const { return false; }
 };
 
 template <typename T>
@@ -1715,9 +1717,9 @@ class specs_setter {
 };
 
 template <typename ErrorHandler>
-class speck_checker {
+class numeric_specs_checker {
  public:
-  FMT_CONSTEXPR speck_checker(ErrorHandler &eh, internal::type arg_type)
+  FMT_CONSTEXPR numeric_specs_checker(ErrorHandler &eh, internal::type arg_type)
       : error_handler_(eh), arg_type_(arg_type) {}
   FMT_CONSTEXPR void require_numeric_argument() {
     if (!is_arithmetic(arg_type_)) {
@@ -1745,13 +1747,12 @@ class speck_checker {
 // A format specifier handler that checks if specifiers are consistent with the
 // argument type.
 template <typename Handler>
-class specs_check_handler : public Handler {
+class speck_checker : public Handler {
  public:
-  FMT_CONSTEXPR specs_check_handler(const Handler &handler,
-                                    internal::type arg_type)
+  FMT_CONSTEXPR speck_checker(const Handler &handler, internal::type arg_type)
       : Handler(handler), checker_(*this, arg_type) {}
 
-  FMT_CONSTEXPR specs_check_handler(const specs_check_handler &other)
+  FMT_CONSTEXPR speck_checker(const speck_checker &other)
       : Handler(other), checker_(*this, other.arg_type_) {}
 
   FMT_CONSTEXPR void on_align(alignment align) {
@@ -1787,7 +1788,7 @@ class specs_check_handler : public Handler {
   FMT_CONSTEXPR void end_precision() { checker_.check_precision(); }
 
  private:
-  speck_checker<Handler> checker_;
+  numeric_specs_checker<Handler> checker_;
 };
 
 template <template <typename> class Handler, typename T,
@@ -1800,8 +1801,6 @@ FMT_CONSTEXPR void set_dynamic_spec(
     eh.on_error("number is too big");
   value = static_cast<T>(big_value);
 }
-
-struct auto_id {};
 
 // The standard format specifier handler with checking.
 template <typename Context>
@@ -1844,14 +1843,14 @@ class specs_handler: public specs_setter<typename Context::char_type> {
 };
 
 // An argument reference.
-template <typename Char, typename Name>
+template <typename Char, typename String>
 struct arg_ref {
   enum Kind { NONE, INDEX, NAME };
   typedef Char char_type;
 
   FMT_CONSTEXPR arg_ref() : kind(NONE), val() {}
   FMT_CONSTEXPR explicit arg_ref(unsigned index) : kind(INDEX), val(index) {}
-  FMT_CONSTEXPR explicit arg_ref(Name nm) : kind(NAME), val(nm) {}
+  FMT_CONSTEXPR explicit arg_ref(String name) : kind(NAME), val(name) {}
 
   FMT_CONSTEXPR arg_ref &operator=(unsigned idx) {
     kind = INDEX;
@@ -1860,18 +1859,15 @@ struct arg_ref {
   }
 
   Kind kind;
-#if FMT_USE_UNRESTRICTED_UNIONS
-  union value {
-#else
-  struct value {
-#endif
+  FMT_UNRESTRICTED_UNION value {
     FMT_CONSTEXPR value() : index(0u) {}
     FMT_CONSTEXPR value(unsigned id) : index(id) {}
-    FMT_CONSTEXPR value(Name n) : name(n) {}
+    FMT_CONSTEXPR value(String n) : name(n) {}
 
     unsigned index;
-    Name name;  // This is not string_view because of gcc 4.4.
-  } val;
+    String name;
+  }
+  val;
 };
 
 // Format specifiers with width and precision resolved at formatting rather
@@ -1879,9 +1875,9 @@ struct arg_ref {
 // differents sets of arguments (precompilation of format strings).
 template <typename Char>
 struct dynamic_format_specs : basic_format_specs<Char> {
-  typedef arg_ref<Char, string_value<Char>> arg_reference;
-  arg_reference width_ref;
-  arg_reference precision_ref;
+  typedef arg_ref<Char, string_value<Char>> arg_ref_type;
+  arg_ref_type width_ref;
+  arg_ref_type precision_ref;
 };
 
 // Format spec handler that saves references to arguments representing dynamic
@@ -1907,11 +1903,13 @@ class dynamic_specs_handler
 
   template <typename Id>
   FMT_CONSTEXPR void on_dynamic_width(Id arg_id) {
+    context_.check_arg_id(arg_id);
     specs_.width_ref = arg_ref_creator_.create(arg_id);
   }
 
   template <typename Id>
   FMT_CONSTEXPR void on_dynamic_precision(Id arg_id) {
+    context_.check_arg_id(arg_id);
     specs_.precision_ref = arg_ref_creator_.create(arg_id);
   }
 
@@ -1934,13 +1932,9 @@ class dynamic_arg_ref_creator {
 
   FMT_CONSTEXPR dynamic_arg_ref_creator(ParseContext &ctx) : context_(ctx) {}
 
-  FMT_CONSTEXPR arg_ref_type create(unsigned arg_id) {
-    context_.check_arg_id(arg_id);
-    return arg_ref_type(arg_id);
-  }
+  FMT_CONSTEXPR arg_ref_type create(unsigned id) { return arg_ref_type(id); }
 
   FMT_CONSTEXPR arg_ref_type create(basic_string_view<char_type> id) {
-    context_.check_arg_id(id);
     return arg_ref_type(string_value<char_type>{id.data(), id.size()});
   }
 
@@ -1985,15 +1979,11 @@ class prepared_arg_ref_creator {
       : context_(ctx), format_(format_str) {}
 
   FMT_CONSTEXPR arg_ref_type create(basic_string_view<char_type> id) {
-    context_.check_arg_id(id);
     const auto id_metadata = string_view_metadata(format_, id);
     return arg_ref_type(id_metadata);
   }
 
-  FMT_CONSTEXPR arg_ref_type create(unsigned id) {
-    context_.check_arg_id(id);
-    return arg_ref_type(id);
-  }
+  FMT_CONSTEXPR arg_ref_type create(unsigned id) { return arg_ref_type(id); }
 
   FMT_CONSTEXPR arg_ref_type create(auto_id) {
     return arg_ref_type(context_.next_arg_id());
@@ -2006,9 +1996,9 @@ class prepared_arg_ref_creator {
 
 template <typename Char>
 struct prepared_format_specs : basic_format_specs<Char> {
-  typedef arg_ref<Char, string_view_metadata> arg_reference;
-  arg_reference width_ref;
-  arg_reference precision_ref;
+  typedef arg_ref<Char, string_view_metadata> arg_ref_type;
+  arg_ref_type width_ref;
+  arg_ref_type precision_ref;
 };
 
 template <typename ArgRef>
@@ -2034,12 +2024,12 @@ class arg_ref_getter : public arg_ref_getter_base<ArgRef> {
 template <typename Char>
 class arg_ref_getter<arg_ref<Char, string_view_metadata>>
     : public arg_ref_getter_base<arg_ref<Char, string_view_metadata>> {
-  typedef arg_ref<Char, string_view_metadata> arg_reference;
+  typedef arg_ref<Char, string_view_metadata> arg_ref_type;
 
  public:
-  FMT_CONSTEXPR arg_ref_getter(const arg_reference &ref,
+  FMT_CONSTEXPR arg_ref_getter(const arg_ref_type &ref,
                                basic_string_view<Char> format_str)
-      : arg_ref_getter_base<arg_reference>(ref), format_(format_str) {}
+      : arg_ref_getter_base<arg_ref_type>(ref), format_(format_str) {}
   FMT_CONSTEXPR basic_string_view<Char> name() const {
     return this->ref_.val.name.to_view(format_);
   }
@@ -2336,8 +2326,8 @@ FMT_CONSTEXPR void parse_format_string(
 }
 
 template <typename T, typename ParseContext>
-FMT_CONSTEXPR auto parse_format_specs(ParseContext &ctx)
-    -> decltype(ctx.begin()) {
+FMT_CONSTEXPR const typename ParseContext::char_type *
+    parse_format_specs(ParseContext &ctx) {
   // GCC 7.2 requires initializer.
   formatter<T, typename ParseContext::char_type> f{};
   return f.parse(ctx);
@@ -2408,8 +2398,9 @@ template <typename... Args, typename S>
 typename std::enable_if<is_compile_string<S>::value>::type
     check_format_string(S format_str) {
   typedef typename S::char_type char_t;
-  FMT_CONSTEXPR_DECL bool invalid_format = internal::do_check_format_string<
-      char_t, internal::error_handler, Args...>(to_string_view(format_str));
+  FMT_CONSTEXPR_DECL const bool invalid_format =
+      internal::do_check_format_string<char_t, internal::error_handler,
+                                       Args...>(to_string_view(format_str));
   (void)invalid_format;
 }
 
@@ -3224,7 +3215,7 @@ struct formatter<
   // Parses format specifiers stopping either at the end of the range or at the
   // terminating '}'.
   template <typename ParseContext>
-  FMT_CONSTEXPR auto parse(ParseContext &ctx) -> decltype(ctx.begin()) {
+  FMT_CONSTEXPR typename ParseContext::iterator parse(ParseContext &ctx) {
     auto it = internal::null_terminating_iterator<Char>(ctx);
     typedef internal::dynamic_arg_ref_creator<ParseContext> specs_creator;
     typedef internal::dynamic_specs_handler<
@@ -3233,7 +3224,7 @@ struct formatter<
     auto type = internal::get_type<
       typename buffer_context<Char>::type, T>::value;
     specs_creator creator(ctx);
-    internal::specs_check_handler<handler_type> handler(
+    internal::speck_checker<handler_type> handler(
         handler_type(specs_, ctx, creator), type);
     it = parse_format_specs(it, handler);
     auto type_spec = specs_.type;
@@ -3348,7 +3339,7 @@ class dynamic_formatter {
       specs = specs_;
     }
 
-    internal::specs_check_handler<null_handler> checker(
+    internal::speck_checker<null_handler> checker(
         null_handler(), internal::get_type<FormatContext, T>::value);
     checker.on_align(specs.align());
     if (specs.flags == 0)
@@ -3477,7 +3468,7 @@ struct format_handler : internal::error_handler {
     }
     basic_format_specs<Char> specs;
     using internal::specs_handler;
-    internal::specs_check_handler<specs_handler<Context>> handler(
+    internal::speck_checker<specs_handler<Context>> handler(
         specs_handler<Context>(specs, context), arg.type());
     it = parse_format_specs(it, handler);
     if (*it != '}')
@@ -3525,7 +3516,7 @@ struct formatter<arg_join<It, Char>, Char>:
     formatter<typename std::iterator_traits<It>::value_type, Char> {
   template <typename FormatContext>
   auto format(const arg_join<It, Char> &value, FormatContext &ctx)
-      -> decltype(ctx.begin()) {
+      -> decltype(ctx.out()) {
     typedef formatter<typename std::iterator_traits<It>::value_type, Char> base;
     auto it = value.begin;
     auto out = ctx.out();
@@ -3808,10 +3799,10 @@ class udl_formatter {
  public:
   template <typename... Args>
   std::basic_string<Char> operator()(const Args &... args) const {
-    FMT_CONSTEXPR_DECL Char s[] = {CHARS..., '\0'};
-    FMT_CONSTEXPR_DECL bool invalid_format =
+    FMT_CONSTEXPR_DECL const Char s[] = {CHARS..., '\0'};
+    FMT_CONSTEXPR_DECL const bool invalid_format =
         do_check_format_string<Char, error_handler, Args...>(
-          basic_string_view<Char>(s, sizeof...(CHARS)));
+            basic_string_view<Char>(s, sizeof...(CHARS)));
     (void)invalid_format;
     return format(s, args...);
   }
