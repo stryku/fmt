@@ -1844,14 +1844,14 @@ class specs_handler: public specs_setter<typename Context::char_type> {
 };
 
 // An argument reference.
-template <typename Char, typename Name>
+template <typename Char, typename String>
 struct arg_ref {
   enum Kind { NONE, INDEX, NAME };
   typedef Char char_type;
 
   FMT_CONSTEXPR arg_ref() : kind(NONE), val() {}
   FMT_CONSTEXPR explicit arg_ref(unsigned index) : kind(INDEX), val(index) {}
-  FMT_CONSTEXPR explicit arg_ref(Name nm) : kind(NAME), val(nm) {}
+  FMT_CONSTEXPR explicit arg_ref(String name) : kind(NAME), val(name) {}
 
   FMT_CONSTEXPR arg_ref &operator=(unsigned idx) {
     kind = INDEX;
@@ -1867,10 +1867,10 @@ struct arg_ref {
 #endif
     FMT_CONSTEXPR value() : index(0u) {}
     FMT_CONSTEXPR value(unsigned id) : index(id) {}
-    FMT_CONSTEXPR value(Name n) : name(n) {}
+    FMT_CONSTEXPR value(String n) : name(n) {}
 
     unsigned index;
-    Name name;  // This is not string_view because of gcc 4.4.
+    String name;
   } val;
 };
 
