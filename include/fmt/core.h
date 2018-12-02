@@ -67,7 +67,7 @@
 # define FMT_CONSTEXPR_DECL constexpr
 #else
 # define FMT_CONSTEXPR inline
-#define FMT_CONSTEXPR_DECL const
+# define FMT_CONSTEXPR_DECL
 #endif
 
 #ifndef FMT_USE_CONSTEXPR11

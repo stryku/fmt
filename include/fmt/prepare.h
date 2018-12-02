@@ -413,7 +413,7 @@ class compiletime_prepared_parts_type_provider {
 
    private:
     FMT_CONSTEXPR const char_type *find_matching_brace(const char_type *p) {
-      FMT_CONSTEXPR_DECL basic_string_view<char_type> text = Format{};
+      FMT_CONSTEXPR_DECL const basic_string_view<char_type> text = Format{};
       unsigned braces_counter{0u};
       for (; p != text.end(); ++p) {
         if (*p == '{') {
@@ -434,7 +434,7 @@ class compiletime_prepared_parts_type_provider {
   };
 
   static FMT_CONSTEXPR unsigned count_parts() {
-    FMT_CONSTEXPR_DECL auto text = to_string_view(Format{});
+    FMT_CONSTEXPR_DECL const auto text = to_string_view(Format{});
     count_handler handler;
     internal::parse_format_string</*IS_CONSTEXPR=*/true>(text, handler);
     return handler.result();
@@ -443,7 +443,7 @@ class compiletime_prepared_parts_type_provider {
 // Workaround for old compilers. Compiletime parts preparation will not be
 // performed with them anyway.
 #if FMT_USE_CONSTEXPR
-  static FMT_CONSTEXPR_DECL unsigned number_of_format_parts =
+  static FMT_CONSTEXPR_DECL const unsigned number_of_format_parts =
       compiletime_prepared_parts_type_provider::count_parts();
 #else
   static const unsigned number_of_format_parts = 0u;
@@ -539,7 +539,7 @@ struct compiletime_parts_provider {
   FMT_CONSTEXPR compiletime_parts_provider(basic_string_view<Char>) {}
 
   const PartsContainer &parts() const {
-    static FMT_CONSTEXPR_DECL PartsContainer prepared_parts =
+    static FMT_CONSTEXPR_DECL const PartsContainer prepared_parts =
         prepare_compiletime_parts<PartsContainer>(
             internal::to_string_view(Format{}));
 
