@@ -34,12 +34,22 @@ using fmt::string_view;
 
 #define TEST_FMT_CHAR(S) typename fmt::internal::char_t<S>::type
 
-struct FormatFunctionWrapper {
+namespace
+{
+    template <typename Format>
+    static std::basic_string<TEST_FMT_CHAR(Format)> get_runtime_format(
+        Format &&format_str) {
+        const auto format_view = fmt::internal::to_string_view(format_str);
+        return std::basic_string<TEST_FMT_CHAR(Format)>(format_view.begin(), format_view.size());
+    }
+}
+
+// A wrapper that simply forwards format string as a compile string to fmt::format*() functions.
+struct CompiletimeFormatFunctionWrapper {
   template <typename Format, typename... Args>
-  static std::basic_string<TEST_FMT_CHAR(Format)> format(Format &&format_str,
+  static std::basic_string<TEST_FMT_CHAR(Format)> format(const Format &format_str,
                                                          const Args &... args) {
-    const auto format_view = fmt::internal::to_string_view(format_str);
-    return fmt::format(format_view, args...);
+    return fmt::format(format_str, args...);
   }
 
   template <typename S, typename... Args,
@@ -73,35 +83,70 @@ struct FormatFunctionWrapper {
   static auto format_to_n(Out out, std::size_t n, Format &&format_str,
                           const Args &... args)
       -> fmt::format_to_n_result<Out> {
-    const auto format_view = fmt::internal::to_string_view(format_str);
     return fmt::format_to_n(std::forward<Out>(out), n, format_str, args...);
   }
 
   template <typename Format, typename... Args>
-  static std::size_t formatted_size(Format &&format_str, const Args &... args) {
-    const auto format_view = fmt::internal::to_string_view(format_str);
-    return fmt::formatted_size(format_view, args...);
+  static std::size_t formatted_size(const Format &format_str, const Args &... args) {
+    return fmt::formatted_size(format_str, args...);
   }
 };
 
-class RuntimePreparedFormatWrapper {
- private:
-  template <typename Format>
-  static std::basic_string<TEST_FMT_CHAR(Format)> get_runtime_format(
-      Format &&format_str) {
-    const auto format_view = fmt::internal::to_string_view(format_str);
-    std::basic_string<TEST_FMT_CHAR(Format)> str;
-    str.assign(format_view.begin(), format_view.size());
-    return str;
-  }
+// A wrapper that converts the format string from a compile string to a std::basic_string and passes it to fmt::format*() functions.
+struct RuntimeFormatFunctionWrapper {
+    template <typename Format, typename... Args>
+    static std::basic_string<TEST_FMT_CHAR(Format)> format(const Format &format_str,
+                                                           const Args &... args) {
+        return fmt::format(get_runtime_format(format_str), args...);
+    }
 
+    template <typename S, typename... Args,
+        std::size_t SIZE = fmt::inline_buffer_size,
+        typename Char = typename fmt::internal::char_t<S>::type>
+        static inline typename fmt::buffer_context<Char>::type::iterator format_to(
+            fmt::basic_memory_buffer<Char, SIZE> &buf, const S &format_str,
+            const Args &... args) {
+        return fmt::format_to(buf, get_runtime_format(format_str), args...);
+    }
+
+    template <typename OutputIt, typename S, typename... Args>
+    static typename std::enable_if<
+        fmt::internal::is_string<S>::value &&
+        fmt::internal::is_output_iterator<OutputIt>::value,
+        OutputIt>::type
+        format_to(OutputIt out, const S &format_str, const Args &... args) {
+        return fmt::format_to(out, get_runtime_format(format_str), args...);
+    }
+
+    template <typename Container, typename S, typename... Args>
+    static typename std::enable_if<fmt::is_contiguous<Container>::value &&
+        fmt::internal::is_string<S>::value,
+        std::back_insert_iterator<Container>>::type
+        format_to(std::back_insert_iterator<Container> out, const S &format_str,
+                  const Args &... args) {
+        return fmt::format_to(out, get_runtime_format(format_str), args...);
+    }
+
+    template <typename Out, typename Format, typename... Args>
+    static auto format_to_n(Out out, std::size_t n, Format &&format_str,
+                            const Args &... args)
+        -> fmt::format_to_n_result<Out> {
+        return fmt::format_to_n(std::forward<Out>(out), n, get_runtime_format(format_str), args...);
+    }
+
+    template <typename Format, typename... Args>
+    static std::size_t formatted_size(const Format &format_str, const Args &... args) {
+        return fmt::formatted_size(get_runtime_format(format_str), args...);
+    }
+};
+
+// A wrapper that converts the format string from a compile string to a std::basic_string and passes it to fmt::prepare() function.
+class RuntimePreparedFormatWrapper {
  public:
   template <typename Format, typename... Args>
-  static std::basic_string<TEST_FMT_CHAR(Format)> format(Format &&format_str,
+  static std::basic_string<TEST_FMT_CHAR(Format)> format(const Format &format_str,
                                                          const Args &... args) {
-    const auto runtime_format_str =
-        get_runtime_format(std::forward<Format>(format_str));
-    auto formatter = fmt::prepare<Args...>(runtime_format_str);
+    auto formatter = fmt::prepare<Args...>(get_runtime_format(format_str));
     return formatter.format(args...);
   }
 
@@ -111,9 +156,7 @@ class RuntimePreparedFormatWrapper {
   static typename fmt::buffer_context<Char>::type::iterator format_to(
       fmt::basic_memory_buffer<Char, SIZE> &buf, const S &format_str,
       const Args &... args) {
-    const auto runtime_format_str = get_runtime_format(format_str);
-
-    auto formatter = fmt::prepare<Args...>(runtime_format_str);
+    auto formatter = fmt::prepare<Args...>(get_runtime_format(format_str));
     return formatter.format_to(buf, args...);
   }
 
@@ -123,9 +166,7 @@ class RuntimePreparedFormatWrapper {
           fmt::internal::is_output_iterator<OutputIt>::value,
       OutputIt>::type
   format_to(OutputIt out, const S &format_str, const Args &... args) {
-    const auto runtime_format_str = get_runtime_format(format_str);
-
-    auto formatter = fmt::prepare<Args...>(runtime_format_str);
+    auto formatter = fmt::prepare<Args...>(get_runtime_format(format_str));
     return formatter.format_to(out, args...);
   }
 
@@ -135,32 +176,27 @@ class RuntimePreparedFormatWrapper {
                                  std::back_insert_iterator<Container>>::type
   format_to(std::back_insert_iterator<Container> out, const S &format_str,
             const Args &... args) {
-    const auto runtime_format_str = get_runtime_format(format_str);
-
-    auto formatter = fmt::prepare<Args...>(runtime_format_str);
+    auto formatter = fmt::prepare<Args...>(get_runtime_format(format_str));
     return formatter.format_to(out, args...);
   }
 
   template <typename Out, typename Format, typename... Args>
-  static auto format_to_n(Out out, std::size_t n, Format &&format_str,
+  static auto format_to_n(Out out, std::size_t n, const Format &format_str,
                           const Args &... args)
       -> fmt::format_to_n_result<Out> {
-    const auto runtime_format_str =
-        get_runtime_format(std::forward<Format>(format_str));
-    auto formatter = fmt::prepare<Args...>(runtime_format_str);
+    auto formatter = fmt::prepare<Args...>(get_runtime_format(format_str));
     return formatter.format_to_n(std::forward<Out>(out),
                                  static_cast<unsigned>(n), args...);
   }
 
   template <typename Format, typename... Args>
-  static std::size_t formatted_size(Format &&format_str, const Args &... args) {
-    const auto runtime_format_str =
-        get_runtime_format(std::forward<Format>(format_str));
-    auto formatter = fmt::prepare<Args...>(runtime_format_str);
+  static std::size_t formatted_size(const Format &format_str, const Args &... args) {
+    auto formatter = fmt::prepare<Args...>(get_runtime_format(format_str));
     return formatter.formatted_size(args...);
   }
 };
 
+// A wrapper that simply forwards format string as a compile string to fmt::prepare() function.
 struct CompiletimePreparedFormatWrapper {
   template <typename Format, typename... Args>
   static std::basic_string<TEST_FMT_CHAR(Format)> format(
@@ -207,10 +243,10 @@ struct CompiletimePreparedFormatWrapper {
   }
 
   template <typename Out, typename Format, typename... Args>
-  static auto format_to_n(Out out, std::size_t n, Format &&format_str,
+  static auto format_to_n(Out out, std::size_t n, const Format &format_str,
                           const Args &... args)
       -> fmt::format_to_n_result<Out> {
-    auto formatter = fmt::prepare<Args...>(std::forward<Format>(format_str));
+    auto formatter = fmt::prepare<Args...>(format_str);
     return formatter.format_to_n(std::forward<Out>(out),
                                  static_cast<unsigned>(n), args...);
   }
@@ -218,25 +254,25 @@ struct CompiletimePreparedFormatWrapper {
 
 #if FMT_USE_CONSTEXPR
 // We could make a typedef for it, but the GCC 4.4 has problem to compile a
-// TYPED_TEST_CASE with typename: TYPED_TEST_CASE(Test, typename Foo::type)
+// TYPED_TEST_CASE with a typename: TYPED_TEST_CASE(Test, typename Foo::type)
 #define ALL_WRAPPERS          \
-  ::testing::Types<FormatFunctionWrapper, \
+  ::testing::Types<CompiletimeFormatFunctionWrapper, \
+RuntimeFormatFunctionWrapper, \
 RuntimePreparedFormatWrapper, \
-                   \
 CompiletimePreparedFormatWrapper>
 
 #define TEST_FMT_STRING(s) FMT_STRING(s)
 
 #else
 #define ALL_WRAPPERS \
-  ::testing::Types<FormatFunctionWrapper, \
+  ::testing::Types<RuntimeFormatFunctionWrapper, \
 RuntimePreparedFormatWrapper>
 
 #define TEST_FMT_STRING(s) s
 #endif
 
 #define RUNTIME_WRAPPERS \
-  ::testing::Types<FormatFunctionWrapper, \
+  ::testing::Types<RuntimeFormatFunctionWrapper, \
 RuntimePreparedFormatWrapper>
 
 template <typename T>
