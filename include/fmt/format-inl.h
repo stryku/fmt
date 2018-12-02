@@ -362,7 +362,7 @@ class fp {
   static FMT_CONSTEXPR_DECL uint64_t implicit_bit = 1ull
                                                     << double_significand_size;
 
-public:
+ public:
   significand_type f;
   int e;
 

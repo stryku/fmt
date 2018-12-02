@@ -29,8 +29,8 @@
 #define FMT_PREPARE_H_
 
 #ifndef FMT_HAS_CONSTRUCTIBLE_TRAITS
-# define FMT_HAS_CONSTRUCTIBLE_TRAITS \
-   (FMT_GCC_VERSION >= 407 || FMT_CLANG_VERSION || FMT_MSC_VER)
+#define FMT_HAS_CONSTRUCTIBLE_TRAITS \
+  (FMT_GCC_VERSION >= 407 || FMT_CLANG_VERSION || FMT_MSC_VER)
 #endif
 
 #include "format.h"
@@ -39,8 +39,9 @@
 
 FMT_BEGIN_NAMESPACE
 
-template <typename Char> struct format_part {
-public:
+template <typename Char>
+struct format_part {
+ public:
   struct named_argument_id {
     FMT_CONSTEXPR named_argument_id(internal::string_view_metadata id)
         : id(id) {}
@@ -97,7 +98,8 @@ public:
       : which(which_value::argument_id), end_of_argument_id(0u), val(id) {}
 
   FMT_CONSTEXPR format_part(named_argument_id arg_id)
-      : which(which_value::named_argument_id), end_of_argument_id(0u),
+      : which(which_value::named_argument_id),
+        end_of_argument_id(0u),
         val(arg_id) {}
 
   FMT_CONSTEXPR format_part(specification spec)
@@ -133,10 +135,10 @@ public:
 namespace internal {
 template <typename Char, typename PartsContainer>
 class format_preparation_handler : public internal::error_handler {
-private:
+ private:
   typedef format_part<Char> part;
 
-public:
+ public:
   typedef internal::null_terminating_iterator<Char> iterator;
 
   FMT_CONSTEXPR format_preparation_handler(basic_string_view<Char> format,
@@ -204,14 +206,15 @@ public:
     return pointer_from(it);
   }
 
-private:
+ private:
   PartsContainer &parts_;
   basic_string_view<Char> format_;
   basic_parse_context<Char> parse_context_;
 };
 
-template <typename ErrorHandler> class parsed_specs_checker {
-public:
+template <typename ErrorHandler>
+class parsed_specs_checker {
+ public:
   FMT_CONSTEXPR parsed_specs_checker(ErrorHandler &error_handler,
                                      internal::type arg_type)
       : checker_(error_handler, arg_type) {}
@@ -235,13 +238,13 @@ public:
     }
   }
 
-private:
+ private:
   speck_checker<ErrorHandler> checker_;
 };
 
 template <typename Format, typename PreparedPartsProvider, typename... Args>
 class prepared_format {
-public:
+ public:
   typedef FMT_CHAR(Format) char_type;
   typedef format_part<char_type> format_part_t;
   typedef internal::checked_args<Format, Args...> checked_args;
@@ -299,14 +302,13 @@ public:
   }
 
   template <std::size_t SIZE = inline_buffer_size>
-  inline typename buffer_context<char_type>::type::iterator
-  format_to(basic_memory_buffer<char_type, SIZE> &buf,
-            const Args &... args) const {
+  inline typename buffer_context<char_type>::type::iterator format_to(
+      basic_memory_buffer<char_type, SIZE> &buf, const Args &... args) const {
     typedef back_insert_range<internal::basic_buffer<char_type>> range;
     return this->vformat_to(range(buf), *checked_args(format_, args...));
   }
 
-private:
+ private:
   template <typename Range, typename Context>
   typename Context::iterator vformat_to(Range out,
                                         basic_format_args<Context> args) const {
@@ -322,52 +324,53 @@ private:
       ctx.clear_prepared_specs();
 
       switch (part.which) {
-      case format_part_t::which_value::text: {
-        const auto text = value.text.to_view(format_view);
-        w.text(text.begin(), text.end());
-      } break;
+        case format_part_t::which_value::text: {
+          const auto text = value.text.to_view(format_view);
+          w.text(text.begin(), text.end());
+        } break;
 
-      case format_part_t::which_value::argument_id: {
-        advance_parse_context_to_specification(ctx, part);
-        w.argument(value.arg_id);
-      } break;
+        case format_part_t::which_value::argument_id: {
+          advance_parse_context_to_specification(ctx, part);
+          w.argument(value.arg_id);
+        } break;
 
-      case format_part_t::which_value::named_argument_id: {
-        advance_parse_context_to_specification(ctx, part);
-        const auto argument_name = value.named_arg_id.to_view(format_view);
-        w.argument(argument_name);
-      } break;
-      case format_part_t::which_value::specification: {
-        const auto &arg_id_value = value.spec.arg_id.val;
-        const auto arg =
-            value.spec.arg_id.which ==
-                    format_part_t::argument_id::which_arg_id::index
-                ? ctx.get_arg(arg_id_value.index)
-                : ctx.get_arg(arg_id_value.named_index.to_view(format_));
+        case format_part_t::which_value::named_argument_id: {
+          advance_parse_context_to_specification(ctx, part);
+          const auto argument_name = value.named_arg_id.to_view(format_view);
+          w.argument(argument_name);
+        } break;
+        case format_part_t::which_value::specification: {
+          const auto &arg_id_value = value.spec.arg_id.val;
+          const auto arg =
+              value.spec.arg_id.which ==
+                      format_part_t::argument_id::which_arg_id::index
+                  ? ctx.get_arg(arg_id_value.index)
+                  : ctx.get_arg(arg_id_value.named_index.to_view(format_));
 
-        auto specs = value.spec.parsed_specs;
+          auto specs = value.spec.parsed_specs;
 
-        typedef arg_ref_getter<decltype(specs.width_ref)> getter;
+          typedef arg_ref_getter<decltype(specs.width_ref)> getter;
 
-        handle_dynamic_spec<internal::width_checker>(
-            specs.width_, getter(specs.width_ref, format_view), ctx);
-        handle_dynamic_spec<internal::precision_checker>(
-            specs.precision, getter(specs.precision_ref, format_view), ctx);
+          handle_dynamic_spec<internal::width_checker>(
+              specs.width_, getter(specs.width_ref, format_view), ctx);
+          handle_dynamic_spec<internal::precision_checker>(
+              specs.precision, getter(specs.precision_ref, format_view), ctx);
 
-        // Custom type check will be handled by custom formatter while
-        // parsing/formatting.
-        if (arg.type() != internal::custom_type) {
-          auto eh = internal::error_handler();
-          parsed_specs_checker<internal::error_handler> checker(eh, arg.type());
-          checker.check(specs);
-        }
+          // Custom type check will be handled by custom formatter while
+          // parsing/formatting.
+          if (arg.type() != internal::custom_type) {
+            auto eh = internal::error_handler();
+            parsed_specs_checker<internal::error_handler> checker(eh,
+                                                                  arg.type());
+            checker.check(specs);
+          }
 
-        advance_parse_context_to_specification(ctx, part);
+          advance_parse_context_to_specification(ctx, part);
 
-        ctx.set_prepared_specs(specs);
+          ctx.set_prepared_specs(specs);
 
-        w.argument_with_specs(arg, specs);
-      } break;
+          w.argument_with_specs(arg, specs);
+        } break;
       }
     }
 
@@ -382,20 +385,21 @@ private:
     ctx.parse_context().advance_to(specification_begin);
   }
 
-private:
+ private:
   Format format_;
   PreparedPartsProvider parts_provider_;
 };
 
-template <typename Format> class compiletime_prepared_parts_type_provider {
-private:
+template <typename Format>
+class compiletime_prepared_parts_type_provider {
+ private:
   typedef FMT_CHAR(Format) char_type;
 
   class count_handler {
-  private:
+   private:
     typedef internal::null_terminating_iterator<char_type> iterator;
 
-  public:
+   public:
     FMT_CONSTEXPR count_handler() : counter_(0u) {}
 
     FMT_CONSTEXPR void on_text(const char_type *, const char_type *) {
@@ -416,7 +420,7 @@ private:
 
     FMT_CONSTEXPR unsigned result() const { return counter_; }
 
-  private:
+   private:
     FMT_CONSTEXPR const char_type *find_matching_brace(const char_type *p) {
       FMT_CONSTEXPR_DECL basic_string_view<char_type> text = Format{};
       unsigned braces_counter{0u};
@@ -434,7 +438,7 @@ private:
       return p;
     }
 
-  private:
+   private:
     unsigned counter_;
   };
 
@@ -454,8 +458,9 @@ private:
   static const unsigned number_of_format_parts = 0u;
 #endif
 
-public:
-  template <unsigned N> struct format_parts_array {
+ public:
+  template <unsigned N>
+  struct format_parts_array {
     typedef format_part<char_type> value_type;
 
     FMT_CONSTEXPR format_parts_array() : arr{} {}
@@ -466,7 +471,7 @@ public:
 
     FMT_CONSTEXPR const value_type *end() const { return begin() + N; }
 
-  private:
+   private:
     value_type arr[N];
   };
 
@@ -480,11 +485,12 @@ public:
                                     empty>::type type;
 };
 
-template <typename Parts> class compiletime_prepared_parts_collector {
-private:
+template <typename Parts>
+class compiletime_prepared_parts_collector {
+ private:
   typedef typename Parts::value_type format_part;
 
-public:
+ public:
   FMT_CONSTEXPR explicit compiletime_prepared_parts_collector(Parts &parts)
       : parts_{parts}, counter_{0u} {}
 
@@ -496,7 +502,7 @@ public:
 
   FMT_CONSTEXPR format_part last() { return parts_[counter_ - 1]; }
 
-private:
+ private:
   Parts &parts_;
   unsigned counter_;
 };
@@ -521,8 +527,9 @@ prepare_compiletime_parts(basic_string_view<Char> format) {
   return parts;
 }
 
-template <typename PartsContainer> class runtime_parts_provider {
-public:
+template <typename PartsContainer>
+class runtime_parts_provider {
+ public:
   runtime_parts_provider() = delete;
   template <typename Char>
   runtime_parts_provider(basic_string_view<Char> format)
@@ -530,7 +537,7 @@ public:
 
   const PartsContainer &parts() const { return parts_; }
 
-private:
+ private:
   PartsContainer parts_;
 };
 
@@ -551,10 +558,11 @@ struct compiletime_parts_provider {
 
 template <typename PartsContainer>
 struct parts_container_concept_check : std::true_type {
-
 #if FMT_HAS_CONSTRUCTIBLE_TRAITS
-  static_assert(std::is_copy_constructible<PartsContainer>::value, "PartsContainer is not copy constructible");
-  static_assert(std::is_move_constructible<PartsContainer>::value, "PartsContainer is not move constructible");
+  static_assert(std::is_copy_constructible<PartsContainer>::value,
+                "PartsContainer is not copy constructible");
+  static_assert(std::is_move_constructible<PartsContainer>::value,
+                "PartsContainer is not move constructible");
 #endif
 
   template <typename T, typename = void>
@@ -573,15 +581,16 @@ struct parts_container_concept_check : std::true_type {
   template <typename T>
   static std::false_type has_add_check(check_second);
   template <typename T>
-  static decltype(declval<T>().add(declval<typename T::format_part_type>()), std::true_type()) has_add_check(check_first);
+  static decltype(declval<T>().add(declval<typename T::format_part_type>()),
+                  std::true_type()) has_add_check(check_first);
   typedef decltype(has_add_check<PartsContainer>(check_first())) has_add;
-  static_assert(has_add::value,
-                "PartsContainer doesn't provide add() method");
+  static_assert(has_add::value, "PartsContainer doesn't provide add() method");
 
   template <typename T>
   static std::false_type has_last_check(check_second);
   template <typename T>
-  static decltype(declval<T>().last(), std::true_type()) has_last_check(check_first);
+  static decltype(declval<T>().last(),
+                  std::true_type()) has_last_check(check_first);
   typedef decltype(has_last_check<PartsContainer>(check_first())) has_last;
   static_assert(has_last::value,
                 "PartsContainer doesn't provide last() method");
@@ -589,29 +598,30 @@ struct parts_container_concept_check : std::true_type {
   template <typename T>
   static std::false_type has_substitute_last_check(check_second);
   template <typename T>
-  static decltype(declval<T>().substitute_last(
-	  declval<typename T::format_part_type>()), std::true_type()) has_substitute_last_check(check_first);
-  typedef decltype(has_substitute_last_check<PartsContainer>(check_first())) has_substitute_last;
+  static decltype(
+      declval<T>().substitute_last(declval<typename T::format_part_type>()),
+      std::true_type()) has_substitute_last_check(check_first);
+  typedef decltype(has_substitute_last_check<PartsContainer>(
+      check_first())) has_substitute_last;
   static_assert(has_substitute_last::value,
-	  "PartsContainer doesn't provide substitute_last() method");
+                "PartsContainer doesn't provide substitute_last() method");
 
   template <typename T>
   static std::false_type has_begin_check(check_second);
   template <typename T>
-  static decltype(
-	  declval<T>().begin(), std::true_type()) has_begin_check(check_first);
+  static decltype(declval<T>().begin(),
+                  std::true_type()) has_begin_check(check_first);
   typedef decltype(has_begin_check<PartsContainer>(check_first())) has_begin;
   static_assert(has_begin::value,
-	  "PartsContainer doesn't provide begin() method");
+                "PartsContainer doesn't provide begin() method");
 
   template <typename T>
   static std::false_type has_end_check(check_second);
   template <typename T>
-  static decltype(
-	  declval<T>().end(), std::true_type()) has_end_check(check_first);
+  static decltype(declval<T>().end(),
+                  std::true_type()) has_end_check(check_first);
   typedef decltype(has_end_check<PartsContainer>(check_first())) has_end;
-  static_assert(has_end::value,
-                "PartsContainer doesn't provide end() method");
+  static_assert(has_end::value, "PartsContainer doesn't provide end() method");
 };
 
 template <bool IS_CONSTEXPR, typename Format, typename /*PartsContainer*/>
@@ -639,20 +649,18 @@ struct basic_prepared_format {
 };
 
 template <typename Char>
-std::basic_string<Char> to_runtime_format(basic_string_view<Char> format)
-{
-    return std::basic_string<Char>(format.begin(), format.size());
+std::basic_string<Char> to_runtime_format(basic_string_view<Char> format) {
+  return std::basic_string<Char>(format.begin(), format.size());
 }
 
 template <typename Char>
-std::basic_string<Char> to_runtime_format(const Char* format)
-{
-    return std::basic_string<Char>(format);
+std::basic_string<Char> to_runtime_format(const Char *format) {
+  return std::basic_string<Char>(format);
 }
 
 template <typename Char, typename Container = std::vector<format_part<Char>>>
 class parts_container {
-public:
+ public:
   typedef format_part<Char> format_part_type;
 
   void add(format_part_type part) { parts_.push_back(std::move(part)); }
@@ -679,17 +687,17 @@ public:
     return parts_.end();
   }
 
-private:
+ private:
   Container parts_;
 };
 
 // Delegate preparing to preparator, to take advantage of a partial
 // specialization.
-template <typename Format, typename... Args> struct preparator {
+template <typename Format, typename... Args>
+struct preparator {
   typedef parts_container<FMT_CHAR(Format)> container;
-  typedef typename basic_prepared_format<Format,
-                                         container,
-                                         Args...>::type prepared_format_type;
+  typedef typename basic_prepared_format<Format, container, Args...>::type
+      prepared_format_type;
 
   static auto prepare(Format format) -> prepared_format_type {
     return prepared_format_type(std::move(format));
@@ -711,7 +719,8 @@ struct preparator<PassedFormat, prepared_format<PreparedFormatFormat,
 struct compiletime_format_tag {};
 struct runtime_format_tag {};
 
-template <typename Format> struct format_tag {
+template <typename Format>
+struct format_tag {
   typedef typename std::conditional<is_compile_string<Format>::value,
                                     compiletime_format_tag,
                                     runtime_format_tag>::type type;
@@ -734,7 +743,7 @@ auto do_prepare(const Format &format)
   return preparator<Format, Args...>::prepare(format);
 }
 #endif
-} // namespace internal
+}  // namespace internal
 
 template <typename Char, typename Container = std::vector<format_part<Char>>>
 struct parts_container {
@@ -747,12 +756,14 @@ struct basic_prepared_format {
                                                    Args...>::type type;
 };
 
-template <typename... Args> struct prepared_format {
+template <typename... Args>
+struct prepared_format {
   typedef typename basic_prepared_format<
       std::string, typename parts_container<char>::type, Args...>::type type;
 };
 
-template <typename... Args> struct wprepared_format {
+template <typename... Args>
+struct wprepared_format {
   typedef
       typename basic_prepared_format<std::wstring,
                                      typename parts_container<wchar_t>::type,
@@ -796,24 +807,27 @@ auto prepare(Format format) ->
 #endif
 
 template <typename... Args, typename Char>
-auto prepare(const Char* format) -> typename internal::preparator<std::basic_string<Char>, Args...>::prepared_format_type
-{
-    return prepare<Args...>(internal::to_runtime_format(format));
+auto prepare(const Char *format) ->
+    typename internal::preparator<std::basic_string<Char>,
+                                  Args...>::prepared_format_type {
+  return prepare<Args...>(internal::to_runtime_format(format));
 }
 
 template <typename... Args, typename Char, unsigned N>
-auto prepare(const Char(format)[N]) -> typename internal::preparator<std::basic_string<Char>, Args...>::prepared_format_type
-{
-    const auto view = basic_string_view<Char>(format, N);
-    return prepare<Args...>(internal::to_runtime_format(view));
+auto prepare(const Char(format)[N]) ->
+    typename internal::preparator<std::basic_string<Char>,
+                                  Args...>::prepared_format_type {
+  const auto view = basic_string_view<Char>(format, N);
+  return prepare<Args...>(internal::to_runtime_format(view));
 }
 
 template <typename... Args, typename Char>
-auto prepare(basic_string_view<Char> format) -> typename internal::preparator<std::basic_string<Char>, Args...>::prepared_format_type
-{
-    return prepare<Args...>(internal::to_runtime_format(format));
+auto prepare(basic_string_view<Char> format) ->
+    typename internal::preparator<std::basic_string<Char>,
+                                  Args...>::prepared_format_type {
+  return prepare<Args...>(internal::to_runtime_format(format));
 }
 
 FMT_END_NAMESPACE
 
-#endif // FMT_PREPARE_H_
+#endif  // FMT_PREPARE_H_
