@@ -1620,9 +1620,7 @@ class custom_formatter : public function<bool> {
   }
 
   template <typename T>
-  bool operator()(T) const {
-    return false;
-  }
+  bool operator()(T) const { return false; }
 };
 
 template <typename T>
@@ -2335,8 +2333,8 @@ FMT_CONSTEXPR void parse_format_string(
 }
 
 template <typename T, typename ParseContext>
-FMT_CONSTEXPR auto parse_format_specs(ParseContext &ctx)
-    -> decltype(ctx.begin()) {
+FMT_CONSTEXPR const typename ParseContext::char_type *
+    parse_format_specs(ParseContext &ctx) {
   // GCC 7.2 requires initializer.
   formatter<T, typename ParseContext::char_type> f{};
   return f.parse(ctx);
@@ -3223,7 +3221,7 @@ struct formatter<
   // Parses format specifiers stopping either at the end of the range or at the
   // terminating '}'.
   template <typename ParseContext>
-  FMT_CONSTEXPR auto parse(ParseContext &ctx) -> decltype(ctx.begin()) {
+  FMT_CONSTEXPR typename ParseContext::iterator parse(ParseContext &ctx) {
     auto it = internal::null_terminating_iterator<Char>(ctx);
     typedef internal::dynamic_arg_ref_creator<ParseContext> specs_creator;
     typedef internal::dynamic_specs_handler<
@@ -3524,7 +3522,7 @@ struct formatter<arg_join<It, Char>, Char>:
     formatter<typename std::iterator_traits<It>::value_type, Char> {
   template <typename FormatContext>
   auto format(const arg_join<It, Char> &value, FormatContext &ctx)
-      -> decltype(ctx.begin()) {
+      -> decltype(ctx.out()) {
     typedef formatter<typename std::iterator_traits<It>::value_type, Char> base;
     auto it = value.begin;
     auto out = ctx.out();
