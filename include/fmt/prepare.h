@@ -230,7 +230,7 @@ class parsed_specs_checker {
   }
 
  private:
-  speck_checker<ErrorHandler> checker_;
+  numeric_specs_checker<ErrorHandler> checker_;
 };
 
 template <typename Format, typename PreparedPartsProvider, typename... Args>

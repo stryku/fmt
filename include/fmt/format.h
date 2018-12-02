@@ -1718,9 +1718,9 @@ class specs_setter {
 };
 
 template <typename ErrorHandler>
-class speck_checker {
+class numeric_specs_checker {
  public:
-  FMT_CONSTEXPR speck_checker(ErrorHandler &eh, internal::type arg_type)
+  FMT_CONSTEXPR numeric_specs_checker(ErrorHandler &eh, internal::type arg_type)
       : error_handler_(eh), arg_type_(arg_type) {}
   FMT_CONSTEXPR void require_numeric_argument() {
     if (!is_arithmetic(arg_type_)) {
@@ -1748,13 +1748,13 @@ class speck_checker {
 // A format specifier handler that checks if specifiers are consistent with the
 // argument type.
 template <typename Handler>
-class specs_check_handler : public Handler {
+class speck_checker : public Handler {
  public:
-  FMT_CONSTEXPR specs_check_handler(const Handler &handler,
+  FMT_CONSTEXPR speck_checker(const Handler &handler,
                                     internal::type arg_type)
       : Handler(handler), checker_(*this, arg_type) {}
 
-  FMT_CONSTEXPR specs_check_handler(const specs_check_handler &other)
+  FMT_CONSTEXPR speck_checker(const speck_checker &other)
       : Handler(other), checker_(*this, other.arg_type_) {}
 
   FMT_CONSTEXPR void on_align(alignment align) {
@@ -1790,7 +1790,7 @@ class specs_check_handler : public Handler {
   FMT_CONSTEXPR void end_precision() { checker_.check_precision(); }
 
  private:
-  speck_checker<Handler> checker_;
+  numeric_specs_checker<Handler> checker_;
 };
 
 template <template <typename> class Handler, typename T,
@@ -3232,7 +3232,7 @@ struct formatter<
     auto type = internal::get_type<
       typename buffer_context<Char>::type, T>::value;
     specs_creator creator(ctx);
-    internal::specs_check_handler<handler_type> handler(
+    internal::speck_checker<handler_type> handler(
         handler_type(specs_, ctx, creator), type);
     it = parse_format_specs(it, handler);
     auto type_spec = specs_.type;
@@ -3347,7 +3347,7 @@ class dynamic_formatter {
       specs = specs_;
     }
 
-    internal::specs_check_handler<null_handler> checker(
+    internal::speck_checker<null_handler> checker(
         null_handler(), internal::get_type<FormatContext, T>::value);
     checker.on_align(specs.align());
     if (specs.flags == 0)
@@ -3476,7 +3476,7 @@ struct format_handler : internal::error_handler {
     }
     basic_format_specs<Char> specs;
     using internal::specs_handler;
-    internal::specs_check_handler<specs_handler<Context>> handler(
+    internal::speck_checker<specs_handler<Context>> handler(
         specs_handler<Context>(specs, context), arg.type());
     it = parse_format_specs(it, handler);
     if (*it != '}')
