@@ -624,8 +624,7 @@ class value {
     // `printf_formatter<T>` for `printf`.
     typename Context::template formatter_type<T>::type f;
     auto &&parse_ctx = ctx.parse_context();
-    const auto stopped_at = f.parse(parse_ctx);
-    parse_ctx.advance_to(stopped_at);
+    parse_ctx.advance_to(f.parse(parse_ctx));
     ctx.advance_to(f.format(*static_cast<const T *>(arg), ctx));
   }
 };
