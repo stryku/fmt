@@ -5,6 +5,7 @@
 //
 // For the license information refer to prepare.h.
 
+#include <stdint.h>
 #include <cctype>
 #include <cfloat>
 #include <climits>
@@ -13,7 +14,6 @@
 #include <deque>
 #include <list>
 #include <memory>
-#include <stdint.h>
 #include <string>
 
 // Check if fmt/prepare.h compiles with windows.h included before it.
@@ -35,7 +35,7 @@ using testing::Return;
 using testing::StrictMock;
 
 class mock_parts_collector {
-public:
+ public:
   MOCK_METHOD1(add, void(fmt::format_part<char>));
   MOCK_METHOD1(substitute_last, void(fmt::format_part<char>));
   MOCK_METHOD0(last, fmt::format_part<char>());
@@ -59,16 +59,16 @@ bool operator==(const format_part<char>::specification &lhs,
 
   typedef format_part<char>::argument_id::which_arg_id which_arg_id;
   switch (lhs.arg_id.which) {
-  case which_arg_id::index: {
-    if (lhs.arg_id.val.index != rhs.arg_id.val.index) {
-      return false;
-    }
-  } break;
-  case which_arg_id::named_index: {
-    if (lhs.arg_id.val.named_index != rhs.arg_id.val.named_index) {
-      return false;
-    }
-  } break;
+    case which_arg_id::index: {
+      if (lhs.arg_id.val.index != rhs.arg_id.val.index) {
+        return false;
+      }
+    } break;
+    case which_arg_id::named_index: {
+      if (lhs.arg_id.val.named_index != rhs.arg_id.val.named_index) {
+        return false;
+      }
+    } break;
   }
 
   return std::tie(lhs.parsed_specs.width_, lhs.parsed_specs.fill_,
@@ -94,21 +94,21 @@ bool operator==(const format_part<char> &lhs,
   }
 
   switch (lhs.which) {
-  case which_value::argument_id: {
-    return lhs.val.arg_id == rhs.val.arg_id;
-  }
+    case which_value::argument_id: {
+      return lhs.val.arg_id == rhs.val.arg_id;
+    }
 
-  case which_value::named_argument_id: {
-    return lhs.val.named_arg_id == rhs.val.named_arg_id;
-  }
+    case which_value::named_argument_id: {
+      return lhs.val.named_arg_id == rhs.val.named_arg_id;
+    }
 
-  case which_value::text: {
-    return lhs.val.text == rhs.val.text;
-  }
+    case which_value::text: {
+      return lhs.val.text == rhs.val.text;
+    }
 
-  case which_value::specification: {
-    return lhs.val.spec == rhs.val.spec;
-  }
+    case which_value::specification: {
+      return lhs.val.spec == rhs.val.spec;
+    }
   }
 
   return false;
@@ -303,13 +303,15 @@ TEST(PrepareTest, FormatPreparationHandler_OnArgId_AddsPartWithPassedNamedId) {
   const auto expected_third_arg_id = fmt::string_view(format.data() + 6, 3);
   const auto expected_third_arg_view_metadata =
       fmt::internal::string_view_metadata(6, 3);
-  EXPECT_CALL(parts, add(format_part(
-                         named_argument_id(expected_first_arg_view_metadata))));
+  EXPECT_CALL(
+      parts,
+      add(format_part(named_argument_id(expected_first_arg_view_metadata))));
   EXPECT_CALL(
       parts,
       add(format_part(named_argument_id(expected_second_arg_view_metadata))));
-  EXPECT_CALL(parts, add(format_part(
-                         named_argument_id(expected_third_arg_view_metadata))));
+  EXPECT_CALL(
+      parts,
+      add(format_part(named_argument_id(expected_third_arg_view_metadata))));
 
   handler.on_arg_id(expected_first_arg_id);
   handler.on_arg_id(expected_second_arg_id);
@@ -425,21 +427,21 @@ TEST(PrepareTest, CompileTimePreparedPartsTypeProvider) {
   check_prepared_parts_type<3u>(FMT_STRING("text{}text"));
   check_prepared_parts_type<3u>(FMT_STRING("{:{}.{}} {:{}}"));
 
-  check_prepared_parts_type<3u>(FMT_STRING("{{{}}}"));  // '{', 'argument', '}'
-  check_prepared_parts_type<2u>(FMT_STRING("text{{"));  // 'text', '{'
-  check_prepared_parts_type<3u>(FMT_STRING("text{{ ")); // 'text', '{', ' '
-  check_prepared_parts_type<2u>(FMT_STRING("}}text"));  // '}', text
-  check_prepared_parts_type<2u>(FMT_STRING("text}}text")); // 'text}', 'text'
+  check_prepared_parts_type<3u>(FMT_STRING("{{{}}}"));   // '{', 'argument', '}'
+  check_prepared_parts_type<2u>(FMT_STRING("text{{"));   // 'text', '{'
+  check_prepared_parts_type<3u>(FMT_STRING("text{{ "));  // 'text', '{', ' '
+  check_prepared_parts_type<2u>(FMT_STRING("}}text"));   // '}', text
+  check_prepared_parts_type<2u>(FMT_STRING("text}}text"));  // 'text}', 'text'
   check_prepared_parts_type<4u>(
-      FMT_STRING("text{{}}text")); // 'text', '{', '}', 'text'
+      FMT_STRING("text{{}}text"));  // 'text', '{', '}', 'text'
 }
 #endif
 
 // Use the struct instead of a function to workaround GCC 4.4's 'sorry,
 // unimplemented: mangling template_id_expr' issue.
-template <typename... Args> struct copied_prepared_format_creator {
-  static decltype(
-      fmt::prepare<Args...>(fmt::internal::declval<std::string>()))
+template <typename... Args>
+struct copied_prepared_format_creator {
+  static decltype(fmt::prepare<Args...>(fmt::internal::declval<std::string>()))
   make(std::string format_str) {
     auto prepared_format = fmt::prepare<Args...>(std::move(format_str));
     auto copied_prepared_format = prepared_format;
@@ -503,13 +505,13 @@ TEST(PrepareTest, UserProvidedPartsContainerUnderlyingContainer) {
 }
 
 class custom_parts_container {
-public:
+ public:
   typedef fmt::format_part<char> format_part_type;
 
-private:
+ private:
   typedef std::deque<format_part_type> parts;
 
-public:
+ public:
   void add(format_part_type part) { parts_.push_back(std::move(part)); }
 
   void substitute_last(format_part_type part) {
@@ -535,7 +537,7 @@ public:
     return parts_.end();
   }
 
-private:
+ private:
   parts parts_;
 };
 
@@ -549,116 +551,103 @@ TEST(PrepareTest, UserProvidedPartsContainer) {
   EXPECT_EQ("40 + 2 = 42", prepared.format("+", 42));
 }
 
-TEST(PrepareTest, PassConstCharPointerFormat)
-{
-    const char* c_format = "test {}";
-    const auto prepared = fmt::prepare<int>(c_format);
-    EXPECT_EQ("test 42", prepared.format(42));
-    const wchar_t* wc_format = L"test {}";
-    const auto wprepared = fmt::prepare<int>(wc_format);
-    EXPECT_EQ(L"test 42", wprepared.format(42));
+TEST(PrepareTest, PassConstCharPointerFormat) {
+  const char *c_format = "test {}";
+  const auto prepared = fmt::prepare<int>(c_format);
+  EXPECT_EQ("test 42", prepared.format(42));
+  const wchar_t *wc_format = L"test {}";
+  const auto wprepared = fmt::prepare<int>(wc_format);
+  EXPECT_EQ(L"test 42", wprepared.format(42));
 }
 
-TEST(PrepareTest, PassCharArrayFormat)
-{
-    char c_format[] = "test {}";
-    const auto prepared = fmt::prepare<int>(c_format);
-    EXPECT_EQ("test 42", prepared.format(42));
-    wchar_t wc_format[] = L"test {}";
-    const auto wprepared = fmt::prepare<int>(wc_format);
-    EXPECT_EQ(L"test 42", wprepared.format(42));
+TEST(PrepareTest, PassCharArrayFormat) {
+  char c_format[] = "test {}";
+  const auto prepared = fmt::prepare<int>(c_format);
+  EXPECT_EQ("test 42", prepared.format(42));
+  wchar_t wc_format[] = L"test {}";
+  const auto wprepared = fmt::prepare<int>(wc_format);
+  EXPECT_EQ(L"test 42", wprepared.format(42));
 }
 
-TEST(PrepareTest, PassConstCharArrayFormat)
-{
-    const char c_format[] = "test {}";
-    const auto prepared = fmt::prepare<int>(c_format);
-    EXPECT_EQ("test 42", prepared.format(42));
-    const wchar_t wc_format[] = L"test {}";
-    const auto wprepared = fmt::prepare<int>(wc_format);
-    EXPECT_EQ(L"test 42", wprepared.format(42));
+TEST(PrepareTest, PassConstCharArrayFormat) {
+  const char c_format[] = "test {}";
+  const auto prepared = fmt::prepare<int>(c_format);
+  EXPECT_EQ("test 42", prepared.format(42));
+  const wchar_t wc_format[] = L"test {}";
+  const auto wprepared = fmt::prepare<int>(wc_format);
+  EXPECT_EQ(L"test 42", wprepared.format(42));
 }
 
-TEST(PrepareTest, PassStringLiteralFormat)
-{
-    const auto prepared = fmt::prepare<int>("test {}");
-    EXPECT_EQ("test 42", prepared.format(42));
-    const auto wprepared = fmt::prepare<int>(L"test {}");
-    EXPECT_EQ(L"test 42", wprepared.format(42));
+TEST(PrepareTest, PassStringLiteralFormat) {
+  const auto prepared = fmt::prepare<int>("test {}");
+  EXPECT_EQ("test 42", prepared.format(42));
+  const auto wprepared = fmt::prepare<int>(L"test {}");
+  EXPECT_EQ(L"test 42", wprepared.format(42));
 }
 
-TEST(PrepareTest, PassStringViewFormat)
-{
-    const auto prepared = fmt::prepare<int>(fmt::basic_string_view<char>("test {}"));
-    EXPECT_EQ("test 42", prepared.format(42));
-    const auto wprepared = fmt::prepare<int>(fmt::basic_string_view<wchar_t>(L"test {}"));
-    EXPECT_EQ(L"test 42", wprepared.format(42));
+TEST(PrepareTest, PassStringViewFormat) {
+  const auto prepared =
+      fmt::prepare<int>(fmt::basic_string_view<char>("test {}"));
+  EXPECT_EQ("test 42", prepared.format(42));
+  const auto wprepared =
+      fmt::prepare<int>(fmt::basic_string_view<wchar_t>(L"test {}"));
+  EXPECT_EQ(L"test 42", wprepared.format(42));
 }
 
-TEST(PrepareTest, PassBasicStringFormat)
-{
-    const auto prepared = fmt::prepare<int>(std::string("test {}"));
-    EXPECT_EQ("test 42", prepared.format(42));
-    const auto wprepared = fmt::prepare<int>(std::wstring(L"test {}"));
-    EXPECT_EQ(L"test 42", wprepared.format(42));
+TEST(PrepareTest, PassBasicStringFormat) {
+  const auto prepared = fmt::prepare<int>(std::string("test {}"));
+  EXPECT_EQ("test 42", prepared.format(42));
+  const auto wprepared = fmt::prepare<int>(std::wstring(L"test {}"));
+  EXPECT_EQ(L"test 42", wprepared.format(42));
 }
 
 #if FMT_USE_CONSTEXPR
-TEST(PrepareTest, PassCompileString)
-{
-    const auto prepared = fmt::prepare<int>(FMT_STRING("test {}"));
-    EXPECT_EQ("test 42", prepared.format(42));
-    const auto wprepared = fmt::prepare<int>(FMT_STRING(L"test {}"));
-    EXPECT_EQ(L"test 42", wprepared.format(42));
+TEST(PrepareTest, PassCompileString) {
+  const auto prepared = fmt::prepare<int>(FMT_STRING("test {}"));
+  EXPECT_EQ("test 42", prepared.format(42));
+  const auto wprepared = fmt::prepare<int>(FMT_STRING(L"test {}"));
+  EXPECT_EQ(L"test 42", wprepared.format(42));
 }
 #endif
 
 template <typename T>
 struct user_allocator {
-    typedef T value_type;
-    typedef value_type* pointer;
-    typedef const value_type* const_pointer;
-    typedef value_type& reference;
-    typedef const value_type& const_reference;
-    typedef std::size_t size_type;
-    typedef std::ptrdiff_t difference_type;
+  typedef T value_type;
+  typedef value_type *pointer;
+  typedef const value_type *const_pointer;
+  typedef value_type &reference;
+  typedef const value_type &const_reference;
+  typedef std::size_t size_type;
+  typedef std::ptrdiff_t difference_type;
 
-    template<typename U>
-    struct rebind {
-        typedef user_allocator<U> other;
-    };
+  template <typename U>
+  struct rebind {
+    typedef user_allocator<U> other;
+  };
 
-    user_allocator() = default;
-    ~user_allocator() = default;
-    template <typename U>
-    user_allocator(const user_allocator<U>&) {}
+  user_allocator() = default;
+  ~user_allocator() = default;
+  template <typename U>
+  user_allocator(const user_allocator<U> &) {}
 
-    pointer allocate(size_type cnt,
-                            typename std::allocator<void>::const_pointer = 0) {
-        return new value_type[cnt];
-    }
+  pointer allocate(size_type cnt,
+                   typename std::allocator<void>::const_pointer = 0) {
+    return new value_type[cnt];
+  }
 
-    void deallocate(pointer p, size_type cnt) {
-        delete[] p;
-	}
+  void deallocate(pointer p, size_type cnt) { delete[] p; }
 
-	void construct(pointer p, const value_type& val)
-	{
-		new (p)value_type(val);
-	}
+  void construct(pointer p, const value_type &val) { new (p) value_type(val); }
 
-	void destroy(pointer p)
-	{
-		(*p).~value_type();
-	}
+  void destroy(pointer p) { (*p).~value_type(); }
 
-    bool operator==(const user_allocator& other) const { return true; }
-    bool operator!=(const user_allocator& other) const { return false; }
+  bool operator==(const user_allocator &other) const { return true; }
+  bool operator!=(const user_allocator &other) const { return false; }
 };
 
-TEST(PrepareTest, PassUserTypeFormat)
-{
-    typedef std::basic_string<char, std::char_traits<char>, user_allocator<char>> user_format;
-    const auto prepared = fmt::prepare<int>(user_format("test {}"));
-    EXPECT_EQ("test 42", prepared.format(42));
+TEST(PrepareTest, PassUserTypeFormat) {
+  typedef std::basic_string<char, std::char_traits<char>, user_allocator<char>>
+      user_format;
+  const auto prepared = fmt::prepare<int>(user_format("test {}"));
+  EXPECT_EQ("test 42", prepared.format(42));
 }

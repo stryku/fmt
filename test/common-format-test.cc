@@ -5,6 +5,7 @@
 //
 // For the license information refer to format.h.
 
+#include <stdint.h>
 #include <cctype>
 #include <cfloat>
 #include <climits>
@@ -12,7 +13,6 @@
 #include <cstring>
 #include <list>
 #include <memory>
-#include <stdint.h>
 #include <string>
 
 // Check if fmt/prepare.h compiles with windows.h included before it.
@@ -45,9 +45,9 @@ struct FormatFunctionWrapper {
   template <typename S, typename... Args,
             std::size_t SIZE = fmt::inline_buffer_size,
             typename Char = typename fmt::internal::char_t<S>::type>
-  static inline typename fmt::buffer_context<Char>::type::iterator
-  format_to(fmt::basic_memory_buffer<Char, SIZE> &buf, const S &format_str,
-            const Args &... args) {
+  static inline typename fmt::buffer_context<Char>::type::iterator format_to(
+      fmt::basic_memory_buffer<Char, SIZE> &buf, const S &format_str,
+      const Args &... args) {
     return fmt::format_to(buf, format_str, args...);
   }
 
@@ -85,17 +85,17 @@ struct FormatFunctionWrapper {
 };
 
 class RuntimePreparedFormatWrapper {
-private:
+ private:
   template <typename Format>
-  static std::basic_string<TEST_FMT_CHAR(Format)>
-  get_runtime_format(Format &&format_str) {
+  static std::basic_string<TEST_FMT_CHAR(Format)> get_runtime_format(
+      Format &&format_str) {
     const auto format_view = fmt::internal::to_string_view(format_str);
     std::basic_string<TEST_FMT_CHAR(Format)> str;
     str.assign(format_view.begin(), format_view.size());
     return str;
   }
 
-public:
+ public:
   template <typename Format, typename... Args>
   static std::basic_string<TEST_FMT_CHAR(Format)> format(Format &&format_str,
                                                          const Args &... args) {
@@ -108,9 +108,9 @@ public:
   template <typename S, typename... Args,
             std::size_t SIZE = fmt::inline_buffer_size,
             typename Char = typename fmt::internal::char_t<S>::type>
-  static typename fmt::buffer_context<Char>::type::iterator
-  format_to(fmt::basic_memory_buffer<Char, SIZE> &buf, const S &format_str,
-            const Args &... args) {
+  static typename fmt::buffer_context<Char>::type::iterator format_to(
+      fmt::basic_memory_buffer<Char, SIZE> &buf, const S &format_str,
+      const Args &... args) {
     const auto runtime_format_str = get_runtime_format(format_str);
 
     auto formatter = fmt::prepare<Args...>(runtime_format_str);
@@ -163,8 +163,8 @@ public:
 
 struct CompiletimePreparedFormatWrapper {
   template <typename Format, typename... Args>
-  static std::basic_string<TEST_FMT_CHAR(Format)>
-  format(const Format &format_str, const Args &... args) {
+  static std::basic_string<TEST_FMT_CHAR(Format)> format(
+      const Format &format_str, const Args &... args) {
     auto formatter = fmt::prepare<Args...>(format_str);
     return formatter.format(args...);
   }
@@ -172,9 +172,9 @@ struct CompiletimePreparedFormatWrapper {
   template <typename S, typename... Args,
             std::size_t SIZE = fmt::inline_buffer_size,
             typename Char = typename fmt::internal::char_t<S>::type>
-  static typename fmt::buffer_context<Char>::type::iterator
-  format_to(fmt::basic_memory_buffer<Char, SIZE> &buf, const S &format_str,
-            const Args &... args) {
+  static typename fmt::buffer_context<Char>::type::iterator format_to(
+      fmt::basic_memory_buffer<Char, SIZE> &buf, const S &format_str,
+      const Args &... args) {
     auto formatter = fmt::prepare<Args...>(format_str);
     return formatter.format_to(buf, args...);
   }
@@ -219,36 +219,40 @@ struct CompiletimePreparedFormatWrapper {
 #if FMT_USE_CONSTEXPR
 // We could make a typedef for it, but the GCC 4.4 has problem to compile a
 // TYPED_TEST_CASE with typename: TYPED_TEST_CASE(Test, typename Foo::type)
-#define ALL_WRAPPERS                                                           \
+#define ALL_WRAPPERS          \
   ::testing::Types<FormatFunctionWrapper, \
-RuntimePreparedFormatWrapper,                                                  \
+RuntimePreparedFormatWrapper, \
                    \
 CompiletimePreparedFormatWrapper>
 
 #define TEST_FMT_STRING(s) FMT_STRING(s)
 
 #else
-#define ALL_WRAPPERS                                                           \
+#define ALL_WRAPPERS \
   ::testing::Types<FormatFunctionWrapper, \
 RuntimePreparedFormatWrapper>
 
 #define TEST_FMT_STRING(s) s
 #endif
 
-#define RUNTIME_WRAPPERS                                                       \
+#define RUNTIME_WRAPPERS \
   ::testing::Types<FormatFunctionWrapper, \
 RuntimePreparedFormatWrapper>
 
-template <typename T> class FormatToTest : public ::testing::Test {};
+template <typename T>
+class FormatToTest : public ::testing::Test {};
 TYPED_TEST_CASE(FormatToTest, ALL_WRAPPERS);
 
-template <typename T> class FormatterTest : public ::testing::Test {};
+template <typename T>
+class FormatterTest : public ::testing::Test {};
 TYPED_TEST_CASE(FormatterTest, ALL_WRAPPERS);
 
-template <typename T> class RuntimeFormattersTest : public ::testing::Test {};
+template <typename T>
+class RuntimeFormattersTest : public ::testing::Test {};
 TYPED_TEST_CASE(RuntimeFormattersTest, RUNTIME_WRAPPERS);
 
-template <typename T> class FormatterThrowTest : public ::testing::Test {};
+template <typename T>
+class FormatterThrowTest : public ::testing::Test {};
 TYPED_TEST_CASE(FormatterThrowTest, RUNTIME_WRAPPERS);
 
 TYPED_TEST(FormatToTest, FormatWithoutArgs) {
@@ -358,14 +362,16 @@ TYPED_TEST(FormatterThrowTest, ArgErrors) {
                    "number is too big");
 }
 
-template <typename Wrapper, int N> struct TestFormat {
+template <typename Wrapper, int N>
+struct TestFormat {
   template <typename... Args>
   static std::string format(fmt::string_view format_str, const Args &... args) {
     return TestFormat<Wrapper, N - 1>::format(format_str, N - 1, args...);
   }
 };
 
-template <typename Wrapper> struct TestFormat<Wrapper, 0> {
+template <typename Wrapper>
+struct TestFormat<Wrapper, 0> {
   template <typename... Args>
   static std::string format(fmt::string_view format_str, const Args &... args) {
     return Wrapper::format(format_str, args...);
@@ -1008,8 +1014,7 @@ void check_unknown_types(const T &value, const char *types, const char *) {
   const char *special = ".0123456789}";
   for (int i = CHAR_MIN; i <= CHAR_MAX; ++i) {
     char c = static_cast<char>(i);
-    if (std::strchr(types, c) || std::strchr(special, c) || !c)
-      continue;
+    if (std::strchr(types, c) || std::strchr(special, c) || !c) continue;
     safe_sprintf(format_str, "{0:10%c}", c);
     const char *message = "invalid type specifier";
     EXPECT_THROW_MSG(FormatWrapper::format(format_str, value), format_error,
@@ -1372,7 +1377,8 @@ TYPED_TEST(FormatterTest, FormatStdStringView) {
 #endif
 
 FMT_BEGIN_NAMESPACE
-template <> struct formatter<Date> {
+template <>
+struct formatter<Date> {
   template <typename ParseContext>
   FMT_CONSTEXPR auto parse(ParseContext &ctx) -> decltype(ctx.begin()) {
     auto it = ctx.begin();
@@ -1398,7 +1404,8 @@ TYPED_TEST(FormatterThrowTest, FormatCustom) {
 class Answer {};
 
 FMT_BEGIN_NAMESPACE
-template <> struct formatter<Answer> : formatter<int> {
+template <>
+struct formatter<Answer> : formatter<int> {
   template <typename FormatContext>
   auto format(Answer, FormatContext &ctx) -> decltype(ctx.begin()) {
     return formatter<int>::format(42, ctx);
@@ -1500,11 +1507,11 @@ struct variant {
 };
 
 FMT_BEGIN_NAMESPACE
-template <> struct formatter<variant> : dynamic_formatter<> {
+template <>
+struct formatter<variant> : dynamic_formatter<> {
   template <typename FormatContext>
   auto format(variant value, FormatContext &ctx) -> decltype(ctx.out()) {
-    if (value.type == variant::INT)
-      return dynamic_formatter<>::format(42, ctx);
+    if (value.type == variant::INT) return dynamic_formatter<>::format(42, ctx);
     return dynamic_formatter<>::format("foo", ctx);
   }
 };

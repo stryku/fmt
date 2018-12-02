@@ -455,8 +455,10 @@ inline basic_string_view<Char>
   to_string_view(basic_string_view<Char> s) { return s; }
 
 template <typename Char, typename Traits, typename Allocator>
-inline basic_string_view<Char>
-to_string_view(const std::basic_string<Char, Traits, Allocator> &s) { return { s.data(), s.size() }; }
+inline basic_string_view<Char> to_string_view(
+    const std::basic_string<Char, Traits, Allocator> &s) {
+  return {s.data(), s.size()};
+}
 
 template <typename Char>
 inline basic_string_view<Char> to_string_view(const Char *s) { return s; }
@@ -504,7 +506,8 @@ template <typename T, typename Char, typename Enable = void>
 struct convert_to_int: std::integral_constant<
   bool, !std::is_arithmetic<T>::value && std::is_convertible<T, int>::value> {};
 
-template <typename Char> struct basic_format_specs;
+template <typename Char>
+struct basic_format_specs;
 
 namespace internal {
 
@@ -616,16 +619,16 @@ class value {
 
  private:
   // Formats an argument of a custom type, such as a user-defined class.
-   template <typename T>
-   static void format_custom_arg(const void *arg, Context &ctx) {
-     // Get the formatter type through the context to allow different contexts
-     // have different extension points, e.g. `formatter<T>` for `format` and
-     // `printf_formatter<T>` for `printf`.
-     typename Context::template formatter_type<T>::type f;
-     auto &&parse_ctx = ctx.parse_context();
-     const auto stopped_at = f.parse(parse_ctx);
-     parse_ctx.advance_to(stopped_at);
-     ctx.advance_to(f.format(*static_cast<const T *>(arg), ctx));
+  template <typename T>
+  static void format_custom_arg(const void *arg, Context &ctx) {
+    // Get the formatter type through the context to allow different contexts
+    // have different extension points, e.g. `formatter<T>` for `format` and
+    // `printf_formatter<T>` for `printf`.
+    typename Context::template formatter_type<T>::type f;
+    auto &&parse_ctx = ctx.parse_context();
+    const auto stopped_at = f.parse(parse_ctx);
+    parse_ctx.advance_to(stopped_at);
+    ctx.advance_to(f.format(*static_cast<const T *>(arg), ctx));
   }
 };
 
@@ -804,7 +807,7 @@ class basic_format_arg {
 
     void format(Context &ctx) const { custom_.format(custom_.value, ctx); }
 
-  private:
+   private:
     internal::custom_value<Context> custom_;
   };
 
@@ -1130,7 +1133,7 @@ class basic_format_context :
   }
   void clear_prepared_specs() { prepared_specs_ = FMT_NULL; }
 
-private:
+ private:
   basic_format_specs<char_type> *prepared_specs_;
 };
 
