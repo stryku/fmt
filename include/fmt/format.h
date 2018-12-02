@@ -82,10 +82,13 @@
 #endif
 
 // Check whether we can use unrestricted unions (e.g. unions with non-PODs
-// members).
-#ifndef FMT_USE_UNRESTRICTED_UNIONS
-#define FMT_USE_UNRESTRICTED_UNIONS \
-  (FMT_MSC_VER >= 1900 || FMT_GCC_VERSION >= 406 || FMT_CLANG_VERSION >= 303)
+// members). If no, use struct.
+#ifndef FMT_UNRESTRICTED_UNION
+#if (FMT_MSC_VER >= 1900 || FMT_GCC_VERSION >= 406 || FMT_CLANG_VERSION >= 303)
+#define FMT_UNRESTRICTED_UNION union
+#else
+#define FMT_UNRESTRICTED_UNION struct
+#endif
 #endif
 
 #if FMT_SECURE_SCL
@@ -1860,11 +1863,7 @@ struct arg_ref {
   }
 
   Kind kind;
-#if FMT_USE_UNRESTRICTED_UNIONS
-  union value {
-#else
-  struct value {
-#endif
+  FMT_UNRESTRICTED_UNION value {
     FMT_CONSTEXPR value() : index(0u) {}
     FMT_CONSTEXPR value(unsigned id) : index(id) {}
     FMT_CONSTEXPR value(String n) : name(n) {}
