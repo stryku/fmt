@@ -773,6 +773,8 @@ enum { max_packed_args = 15 };
 
 template <typename Context>
 class arg_map;
+
+struct auto_id {};
 }  // namespace internal
 
 // A formatting argument. It is a trivially copyable/constructible type to
@@ -907,13 +909,22 @@ class basic_parse_context : private ErrorHandler {
   FMT_CONSTEXPR unsigned next_arg_id();
 
   FMT_CONSTEXPR bool check_arg_id(unsigned) {
-    if (next_arg_id_ > 0) {
+    if (is_indexing_arguments_automatically()) {
       on_error("cannot switch from automatic to manual argument indexing");
       return false;
     }
     next_arg_id_ = -1;
     return true;
   }
+
+  FMT_CONSTEXPR bool check_arg_id(internal::auto_id) {
+      if (is_indexing_arguments_manually()) {
+          on_error("cannot switch from manual to automatic argument indexing");
+          return false;
+      }
+      return true;
+  }
+
   FMT_CONSTEXPR void check_arg_id(basic_string_view<Char>) {}
 
   FMT_CONSTEXPR void on_error(const char *message) {
@@ -921,6 +932,16 @@ class basic_parse_context : private ErrorHandler {
   }
 
   FMT_CONSTEXPR ErrorHandler error_handler() const { return *this; }
+
+private:
+    FMT_CONSTEXPR bool is_indexing_arguments_automatically() const
+    {
+        return next_arg_id_ > 0;
+    }
+    FMT_CONSTEXPR bool is_indexing_arguments_manually() const
+    {
+        return next_arg_id_ == -1;
+    }
 };
 
 typedef basic_parse_context<char> format_parse_context;

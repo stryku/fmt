@@ -1213,10 +1213,12 @@ typedef basic_format_specs<char> format_specs;
 
 template <typename Char, typename ErrorHandler>
 FMT_CONSTEXPR unsigned basic_parse_context<Char, ErrorHandler>::next_arg_id() {
-  if (next_arg_id_ >= 0)
-    return internal::to_unsigned(next_arg_id_++);
-  on_error("cannot switch from manual to automatic argument indexing");
-  return 0;
+    if (is_indexing_arguments_manually())
+    {
+        on_error("cannot switch from manual to automatic argument indexing");
+        return 0;
+    }
+  return internal::to_unsigned(next_arg_id_++);
 }
 
 namespace internal {
@@ -1802,8 +1804,6 @@ FMT_CONSTEXPR void set_dynamic_spec(
   value = static_cast<T>(big_value);
 }
 
-struct auto_id {};
-
 // The standard format specifier handler with checking.
 template <typename Context>
 class specs_handler: public specs_setter<typename Context::char_type> {
@@ -1876,9 +1876,9 @@ struct arg_ref {
 // differents sets of arguments (precompilation of format strings).
 template <typename Char>
 struct dynamic_format_specs : basic_format_specs<Char> {
-  typedef arg_ref<Char, string_value<Char>> arg_reference;
-  arg_reference width_ref;
-  arg_reference precision_ref;
+  typedef arg_ref<Char, string_value<Char>> arg_ref_type;
+  arg_ref_type width_ref;
+  arg_ref_type precision_ref;
 };
 
 // Format spec handler that saves references to arguments representing dynamic
@@ -1904,12 +1904,14 @@ class dynamic_specs_handler
 
   template <typename Id>
   FMT_CONSTEXPR void on_dynamic_width(Id arg_id) {
-    specs_.width_ref = arg_ref_creator_.create(arg_id);
+      context_.check_arg_id(arg_id);
+      specs_.width_ref = arg_ref_creator_.create(arg_id);
   }
 
   template <typename Id>
   FMT_CONSTEXPR void on_dynamic_precision(Id arg_id) {
-    specs_.precision_ref = arg_ref_creator_.create(arg_id);
+      context_.check_arg_id(arg_id);
+      specs_.precision_ref = arg_ref_creator_.create(arg_id);
   }
 
   FMT_CONSTEXPR void on_error(const char *message) {
@@ -1931,13 +1933,11 @@ class dynamic_arg_ref_creator {
 
   FMT_CONSTEXPR dynamic_arg_ref_creator(ParseContext &ctx) : context_(ctx) {}
 
-  FMT_CONSTEXPR arg_ref_type create(unsigned arg_id) {
-    context_.check_arg_id(arg_id);
-    return arg_ref_type(arg_id);
+  FMT_CONSTEXPR arg_ref_type create(unsigned id) {
+    return arg_ref_type(id);
   }
 
   FMT_CONSTEXPR arg_ref_type create(basic_string_view<char_type> id) {
-    context_.check_arg_id(id);
     return arg_ref_type(string_value<char_type>{id.data(), id.size()});
   }
 
@@ -1982,13 +1982,11 @@ class prepared_arg_ref_creator {
       : context_(ctx), format_(format_str) {}
 
   FMT_CONSTEXPR arg_ref_type create(basic_string_view<char_type> id) {
-    context_.check_arg_id(id);
     const auto id_metadata = string_view_metadata(format_, id);
     return arg_ref_type(id_metadata);
   }
 
   FMT_CONSTEXPR arg_ref_type create(unsigned id) {
-    context_.check_arg_id(id);
     return arg_ref_type(id);
   }
 
@@ -2003,9 +2001,9 @@ class prepared_arg_ref_creator {
 
 template <typename Char>
 struct prepared_format_specs : basic_format_specs<Char> {
-  typedef arg_ref<Char, string_view_metadata> arg_reference;
-  arg_reference width_ref;
-  arg_reference precision_ref;
+  typedef arg_ref<Char, string_view_metadata> arg_ref_type;
+  arg_ref_type width_ref;
+  arg_ref_type precision_ref;
 };
 
 template <typename ArgRef>
@@ -2031,12 +2029,12 @@ class arg_ref_getter : public arg_ref_getter_base<ArgRef> {
 template <typename Char>
 class arg_ref_getter<arg_ref<Char, string_view_metadata>>
     : public arg_ref_getter_base<arg_ref<Char, string_view_metadata>> {
-  typedef arg_ref<Char, string_view_metadata> arg_reference;
+  typedef arg_ref<Char, string_view_metadata> arg_ref_type;
 
  public:
-  FMT_CONSTEXPR arg_ref_getter(const arg_reference &ref,
+  FMT_CONSTEXPR arg_ref_getter(const arg_ref_type &ref,
                                basic_string_view<Char> format_str)
-      : arg_ref_getter_base<arg_reference>(ref), format_(format_str) {}
+      : arg_ref_getter_base<arg_ref_type>(ref), format_(format_str) {}
   FMT_CONSTEXPR basic_string_view<Char> name() const {
     return this->ref_.val.name.to_view(format_);
   }
