@@ -1609,7 +1609,7 @@ FMT_CONSTEXPR unsigned parse_nonnegative_int(
 }
 
 template <typename Char, typename Context>
-class custom_formatter : public function<bool> {
+class custom_formatter: public function<bool> {
  private:
   Context &ctx_;
 
