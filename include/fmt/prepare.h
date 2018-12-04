@@ -51,12 +51,11 @@ struct format_part {
   struct argument_id {
     FMT_CONSTEXPR argument_id() : argument_id(0u) {}
 
-    FMT_CONSTEXPR argument_id(unsigned id) : which(which_arg_id::index), val(id) {
-    }
+    FMT_CONSTEXPR argument_id(unsigned id)
+        : which(which_arg_id::index), val(id) {}
 
     FMT_CONSTEXPR argument_id(internal::string_view_metadata id)
-        : which(which_arg_id::named_index), val(id) {
-    }
+        : which(which_arg_id::named_index), val(id) {}
 
     enum class which_arg_id { index, named_index };
 
@@ -65,11 +64,13 @@ struct format_part {
     FMT_UNRESTRICTED_UNION value {
       FMT_CONSTEXPR value() : index(0u) {}
       FMT_CONSTEXPR value(unsigned id) : index(id) {}
-      FMT_CONSTEXPR value(internal::string_view_metadata id) : named_index(id) {}
+      FMT_CONSTEXPR value(internal::string_view_metadata id)
+          : named_index(id) {}
 
       unsigned index;
       internal::string_view_metadata named_index;
-    } val;
+    }
+    val;
   };
 
   struct specification {
@@ -120,7 +121,8 @@ struct format_part {
     internal::string_view_metadata named_arg_id;
     internal::string_view_metadata text;
     specification spec;
-  } val;
+  }
+  val;
 };
 
 namespace internal {

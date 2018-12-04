@@ -1213,11 +1213,10 @@ typedef basic_format_specs<char> format_specs;
 
 template <typename Char, typename ErrorHandler>
 FMT_CONSTEXPR unsigned basic_parse_context<Char, ErrorHandler>::next_arg_id() {
-    if (is_indexing_arguments_manually())
-    {
-        on_error("cannot switch from manual to automatic argument indexing");
-        return 0;
-    }
+  if (is_indexing_arguments_manually()) {
+    on_error("cannot switch from manual to automatic argument indexing");
+    return 0;
+  }
   return internal::to_unsigned(next_arg_id_++);
 }
 
@@ -1750,8 +1749,7 @@ class numeric_specs_checker {
 template <typename Handler>
 class speck_checker : public Handler {
  public:
-  FMT_CONSTEXPR speck_checker(const Handler &handler,
-                                    internal::type arg_type)
+  FMT_CONSTEXPR speck_checker(const Handler &handler, internal::type arg_type)
       : Handler(handler), checker_(*this, arg_type) {}
 
   FMT_CONSTEXPR speck_checker(const speck_checker &other)
@@ -1868,7 +1866,8 @@ struct arg_ref {
 
     unsigned index;
     String name;
-  } val;
+  }
+  val;
 };
 
 // Format specifiers with width and precision resolved at formatting rather
@@ -1904,14 +1903,14 @@ class dynamic_specs_handler
 
   template <typename Id>
   FMT_CONSTEXPR void on_dynamic_width(Id arg_id) {
-      context_.check_arg_id(arg_id);
-      specs_.width_ref = arg_ref_creator_.create(arg_id);
+    context_.check_arg_id(arg_id);
+    specs_.width_ref = arg_ref_creator_.create(arg_id);
   }
 
   template <typename Id>
   FMT_CONSTEXPR void on_dynamic_precision(Id arg_id) {
-      context_.check_arg_id(arg_id);
-      specs_.precision_ref = arg_ref_creator_.create(arg_id);
+    context_.check_arg_id(arg_id);
+    specs_.precision_ref = arg_ref_creator_.create(arg_id);
   }
 
   FMT_CONSTEXPR void on_error(const char *message) {
@@ -1933,9 +1932,7 @@ class dynamic_arg_ref_creator {
 
   FMT_CONSTEXPR dynamic_arg_ref_creator(ParseContext &ctx) : context_(ctx) {}
 
-  FMT_CONSTEXPR arg_ref_type create(unsigned id) {
-    return arg_ref_type(id);
-  }
+  FMT_CONSTEXPR arg_ref_type create(unsigned id) { return arg_ref_type(id); }
 
   FMT_CONSTEXPR arg_ref_type create(basic_string_view<char_type> id) {
     return arg_ref_type(string_value<char_type>{id.data(), id.size()});
@@ -1986,9 +1983,7 @@ class prepared_arg_ref_creator {
     return arg_ref_type(id_metadata);
   }
 
-  FMT_CONSTEXPR arg_ref_type create(unsigned id) {
-    return arg_ref_type(id);
-  }
+  FMT_CONSTEXPR arg_ref_type create(unsigned id) { return arg_ref_type(id); }
 
   FMT_CONSTEXPR arg_ref_type create(auto_id) {
     return arg_ref_type(context_.next_arg_id());
@@ -2403,8 +2398,9 @@ template <typename... Args, typename S>
 typename std::enable_if<is_compile_string<S>::value>::type
     check_format_string(S format_str) {
   typedef typename S::char_type char_t;
-  FMT_CONSTEXPR_DECL const bool invalid_format = internal::do_check_format_string<
-      char_t, internal::error_handler, Args...>(to_string_view(format_str));
+  FMT_CONSTEXPR_DECL const bool invalid_format =
+      internal::do_check_format_string<char_t, internal::error_handler,
+                                       Args...>(to_string_view(format_str));
   (void)invalid_format;
 }
 
@@ -3806,7 +3802,7 @@ class udl_formatter {
     FMT_CONSTEXPR_DECL const Char s[] = {CHARS..., '\0'};
     FMT_CONSTEXPR_DECL const bool invalid_format =
         do_check_format_string<Char, error_handler, Args...>(
-          basic_string_view<Char>(s, sizeof...(CHARS)));
+            basic_string_view<Char>(s, sizeof...(CHARS)));
     (void)invalid_format;
     return format(s, args...);
   }

@@ -918,11 +918,11 @@ class basic_parse_context : private ErrorHandler {
   }
 
   FMT_CONSTEXPR bool check_arg_id(internal::auto_id) {
-      if (is_indexing_arguments_manually()) {
-          on_error("cannot switch from manual to automatic argument indexing");
-          return false;
-      }
-      return true;
+    if (is_indexing_arguments_manually()) {
+      on_error("cannot switch from manual to automatic argument indexing");
+      return false;
+    }
+    return true;
   }
 
   FMT_CONSTEXPR void check_arg_id(basic_string_view<Char>) {}
@@ -933,15 +933,13 @@ class basic_parse_context : private ErrorHandler {
 
   FMT_CONSTEXPR ErrorHandler error_handler() const { return *this; }
 
-private:
-    FMT_CONSTEXPR bool is_indexing_arguments_automatically() const
-    {
-        return next_arg_id_ > 0;
-    }
-    FMT_CONSTEXPR bool is_indexing_arguments_manually() const
-    {
-        return next_arg_id_ == -1;
-    }
+ private:
+  FMT_CONSTEXPR bool is_indexing_arguments_automatically() const {
+    return next_arg_id_ > 0;
+  }
+  FMT_CONSTEXPR bool is_indexing_arguments_manually() const {
+    return next_arg_id_ == -1;
+  }
 };
 
 typedef basic_parse_context<char> format_parse_context;
