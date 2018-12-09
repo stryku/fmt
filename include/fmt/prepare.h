@@ -109,7 +109,7 @@ struct format_part {
   };
 
   which_value which;
-  unsigned end_of_argument_id;
+  std::size_t end_of_argument_id;
   FMT_UNRESTRICTED_UNION value {
     FMT_CONSTEXPR value() : arg_id(0u) {}
     FMT_CONSTEXPR value(unsigned id) : arg_id(id) {}
@@ -143,8 +143,8 @@ class format_preparation_handler : public internal::error_handler {
       {
           return;
       }
-    const auto offset = static_cast<unsigned>(begin - format_.data());
-    const auto size = static_cast<unsigned>(end - begin);
+    const auto offset = begin - format_.data();
+    const auto size = end - begin;
     parts_.add(part(string_view_metadata(offset, size)));
   }
 
@@ -165,7 +165,7 @@ class format_preparation_handler : public internal::error_handler {
 
   FMT_CONSTEXPR void on_replacement_field(const Char *ptr) {
     auto last_part = parts_.last();
-    last_part.end_of_argument_id = static_cast<unsigned>(ptr - format_.begin());
+    last_part.end_of_argument_id = ptr - format_.begin();
     parts_.substitute_last(last_part);
   }
 
@@ -195,7 +195,7 @@ class format_preparation_handler : public internal::error_handler {
     specs.parsed_specs = parsed_specs;
 
     auto new_part = part(specs);
-    new_part.end_of_argument_id = static_cast<unsigned>(specs_offset);
+    new_part.end_of_argument_id = specs_offset;
 
     parts_.substitute_last(new_part);
 
