@@ -1213,11 +1213,10 @@ typedef basic_format_specs<char> format_specs;
 
 template <typename Char, typename ErrorHandler>
 FMT_CONSTEXPR unsigned basic_parse_context<Char, ErrorHandler>::next_arg_id() {
-  if (is_indexing_arguments_manually()) {
-    on_error("cannot switch from manual to automatic argument indexing");
-    return 0;
-  }
-  return internal::to_unsigned(next_arg_id_++);
+  if (next_arg_id_ >= 0)
+      return internal::to_unsigned(next_arg_id_++);
+  on_error("cannot switch from manual to automatic argument indexing");
+  return 0;
 }
 
 namespace internal {
@@ -1922,24 +1921,20 @@ public:
 
     template <typename Id>
     FMT_CONSTEXPR void on_dynamic_width(Id arg_id) {
-        context_.check_arg_id(arg_id);
-        specs_.width_ref = make_ref(arg_id);
+        specs_.width_ref = make_arg_ref(arg_id);
     }
 
     FMT_CONSTEXPR void on_dynamic_width(basic_string_view<char_type> arg_id) {
-        context_.check_arg_id(arg_id);
-        specs_.width_ref = make_name_ref(arg_id);
+        specs_.width_ref = make_name_arg_ref(arg_id);
     }
 
     template <typename Id>
     FMT_CONSTEXPR void on_dynamic_precision(Id arg_id) {
-        context_.check_arg_id(arg_id);
-        specs_.precision_ref = make_ref(arg_id);
+        specs_.precision_ref = make_arg_ref(arg_id);
     }
 
     FMT_CONSTEXPR void on_dynamic_precision(basic_string_view<char_type> arg_id) {
-        context_.check_arg_id(arg_id);
-        specs_.precision_ref = make_name_ref(arg_id);
+        specs_.precision_ref = make_name_arg_ref(arg_id);
     }
 
     FMT_CONSTEXPR void on_error(const char *message) {
@@ -1947,19 +1942,21 @@ public:
     }
 
 private:
-    FMT_CONSTEXPR arg_ref_type make_ref(unsigned id)
+    FMT_CONSTEXPR arg_ref_type make_arg_ref(unsigned arg_id)
     {
-        return arg_ref_type(id);
+        context_.check_arg_id(arg_id);
+        return arg_ref_type(arg_id);
     }
 
-    FMT_CONSTEXPR arg_ref_type make_ref(auto_id)
+    FMT_CONSTEXPR arg_ref_type make_arg_ref(auto_id)
     {
-        return make_ref(context_.next_arg_id());
+        return arg_ref_type(context_.next_arg_id());
     }
 
-    FMT_CONSTEXPR arg_ref_type make_name_ref(basic_string_view<char_type> arg_id)
+    FMT_CONSTEXPR arg_ref_type make_name_arg_ref(basic_string_view<char_type> arg_id)
     {
-        return static_cast<DerivedNameRefCreator*>(this)->make_name_ref(arg_id);
+        context_.check_arg_id(arg_id);
+        return static_cast<DerivedNameRefCreator*>(this)->make_name_arg_ref(arg_id);
     }
 
     template <typename Id>
@@ -1987,7 +1984,7 @@ public:
         : base_handler_type(specs, ctx)
     {}
 
-    FMT_CONSTEXPR arg_ref_type make_name_ref(basic_string_view<typename ParseContext::char_type> id) {
+    FMT_CONSTEXPR arg_ref_type make_name_arg_ref(basic_string_view<typename ParseContext::char_type> id) {
         return arg_ref_type(string_value<typename ParseContext::char_type>{id.data(), id.size()});
     }
 };
@@ -2008,7 +2005,7 @@ public:
         format_(format)
     {}
 
-    FMT_CONSTEXPR arg_ref_type make_name_ref(basic_string_view<typename ParseContext::char_type> id)
+    FMT_CONSTEXPR arg_ref_type make_name_arg_ref(basic_string_view<typename ParseContext::char_type> id)
     {
         const auto id_metadata = string_view_metadata(format_, id);
         return arg_ref_type(id_metadata);
