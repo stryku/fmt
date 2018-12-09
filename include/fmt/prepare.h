@@ -139,6 +139,10 @@ class format_preparation_handler : public internal::error_handler {
       : parts_(parts), format_(format), parse_context_(format) {}
 
   FMT_CONSTEXPR void on_text(const Char *begin, const Char *end) {
+      if (begin == end)
+      {
+          return;
+      }
     const auto offset = static_cast<unsigned>(begin - format_.data());
     const auto size = static_cast<unsigned>(end - begin);
     parts_.add(part(string_view_metadata(offset, size)));
@@ -171,15 +175,10 @@ class format_preparation_handler : public internal::error_handler {
     typedef internal::prepared_format_specs<Char> prepared_specs;
     typedef basic_parse_context<Char> parse_context;
     prepared_specs parsed_specs;
-    //typedef internal::prepared_arg_ref_creator<parse_context> arg_ref_creator;
-    //typedef internal::dynamic_specs_handler<prepared_specs, parse_context,
-                                            //arg_ref_creator>
-        //handler_type;
 
     typedef prepared_specs_handler_2< prepared_specs, parse_context> handler_type;
 
 
-    //arg_ref_creator creator(parse_context_, format_);
     handler_type handler(parsed_specs, parse_context_, format_);
     it = parse_format_specs(it, handler);
 
@@ -420,8 +419,10 @@ class compiletime_prepared_parts_type_provider {
    public:
     FMT_CONSTEXPR count_handler() : counter_(0u) {}
 
-    FMT_CONSTEXPR void on_text(const char_type *, const char_type *) {
-      ++counter_;
+    FMT_CONSTEXPR void on_text(const char_type * begin, const char_type *end) {
+        if (begin != end) {
+            ++counter_;
+        }
     }
 
     FMT_CONSTEXPR void on_arg_id() { ++counter_; }

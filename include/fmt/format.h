@@ -2259,10 +2259,7 @@ FMT_CONSTEXPR void parse_format_string(
       for (;;) {
         const Char *p = FMT_NULL;
         if (!find<IS_CONSTEXPR>(begin, end, '}', p)) {
-          if (begin != end) {
-            handler_.on_text(begin, end);
-          }
-          return;
+          return handler_.on_text(begin, end);
         }
         ++p;
         if (p == end || *p != '}')
