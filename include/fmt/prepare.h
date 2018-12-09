@@ -109,7 +109,7 @@ struct format_part {
   };
 
   which_value which;
-  unsigned end_of_argument_id;
+  std::size_t end_of_argument_id;
   FMT_UNRESTRICTED_UNION value {
     FMT_CONSTEXPR value() : arg_id(0u) {}
     FMT_CONSTEXPR value(unsigned id) : arg_id(id) {}
@@ -139,8 +139,11 @@ class format_preparation_handler : public internal::error_handler {
       : parts_(parts), format_(format), parse_context_(format) {}
 
   FMT_CONSTEXPR void on_text(const Char *begin, const Char *end) {
-    const auto offset = static_cast<unsigned>(begin - format_.data());
-    const auto size = static_cast<unsigned>(end - begin);
+    if (begin == end) {
+      return;
+    }
+    const auto offset = begin - format_.data();
+    const auto size = end - begin;
     parts_.add(part(string_view_metadata(offset, size)));
   }
 
@@ -161,7 +164,7 @@ class format_preparation_handler : public internal::error_handler {
 
   FMT_CONSTEXPR void on_replacement_field(const Char *ptr) {
     auto last_part = parts_.last();
-    last_part.end_of_argument_id = static_cast<unsigned>(ptr - format_.begin());
+    last_part.end_of_argument_id = ptr - format_.begin();
     parts_.substitute_last(last_part);
   }
 
@@ -170,13 +173,10 @@ class format_preparation_handler : public internal::error_handler {
 
     typedef internal::prepared_format_specs<Char> prepared_specs;
     typedef basic_parse_context<Char> parse_context;
+    typedef string_metadata_name_arg_ref_creator<Char> name_ref_creator;
     prepared_specs parsed_specs;
-    typedef internal::prepared_arg_ref_creator<parse_context> arg_ref_creator;
-    typedef internal::dynamic_specs_handler<prepared_specs, parse_context,
-                                            arg_ref_creator>
-        handler_type;
-    arg_ref_creator creator(parse_context_, format_);
-    handler_type handler(parsed_specs, parse_context_, creator);
+    dynamic_specs_handler<prepared_specs, parse_context, name_ref_creator>
+        handler(parsed_specs, parse_context_, name_ref_creator(format_));
     it = parse_format_specs(it, handler);
 
     if (*it != '}') {
@@ -192,7 +192,7 @@ class format_preparation_handler : public internal::error_handler {
     specs.parsed_specs = parsed_specs;
 
     auto new_part = part(specs);
-    new_part.end_of_argument_id = static_cast<unsigned>(specs_offset);
+    new_part.end_of_argument_id = specs_offset;
 
     parts_.substitute_last(new_part);
 
@@ -302,6 +302,25 @@ class prepared_format {
   }
 
  private:
+  arg_ref<char_type, string_value<char_type>> metadata_to_string_value_arg_ref(
+      const arg_ref<char_type, string_view_metadata> &metadata_arg_ref) const {
+    typedef const arg_ref<char_type, string_view_metadata> kind_type;
+    typedef arg_ref<char_type, string_value<char_type>> arg_ref_type;
+    switch (metadata_arg_ref.kind) {
+      case kind_type::INDEX: {
+        return arg_ref_type(metadata_arg_ref.val.index);
+      }
+      case kind_type::NAME: {
+        const auto view = metadata_arg_ref.val.name.to_view(
+            internal::to_string_view(format_));
+        const auto str_value =
+            string_value<char_type>{view.data(), view.size()};
+        return arg_ref_type(str_value);
+      }
+      default: { return {}; }
+    }
+  }
+
   template <typename Range, typename Context>
   typename Context::iterator vformat_to(Range out,
                                         basic_format_args<Context> args) const {
@@ -342,12 +361,12 @@ class prepared_format {
 
           auto specs = value.spec.parsed_specs;
 
-          typedef arg_ref_getter<decltype(specs.width_ref)> getter;
-
           handle_dynamic_spec<internal::width_checker>(
-              specs.width_, getter(specs.width_ref, format_view), ctx);
+              specs.width_, metadata_to_string_value_arg_ref(specs.width_ref),
+              ctx);
           handle_dynamic_spec<internal::precision_checker>(
-              specs.precision, getter(specs.precision_ref, format_view), ctx);
+              specs.precision,
+              metadata_to_string_value_arg_ref(specs.precision_ref), ctx);
 
           // Custom type check will be handled by custom formatter while
           // parsing/formatting.
@@ -395,8 +414,10 @@ class compiletime_prepared_parts_type_provider {
    public:
     FMT_CONSTEXPR count_handler() : counter_(0u) {}
 
-    FMT_CONSTEXPR void on_text(const char_type *, const char_type *) {
-      ++counter_;
+    FMT_CONSTEXPR void on_text(const char_type *begin, const char_type *end) {
+      if (begin != end) {
+        ++counter_;
+      }
     }
 
     FMT_CONSTEXPR void on_arg_id() { ++counter_; }

@@ -324,7 +324,8 @@ TYPED_TEST(FormatToTest, WideString) {
 TYPED_TEST(FormatToTest,
            FormatToNonbackInsertIteratorWithSignAndNumericAlignment) {
   char buffer[16] = {};
-  TypeParam::format_to(buffer, FMT("{: =+}"), 42.0);
+  TypeParam::format_to(fmt::internal::make_checked(buffer, 16),
+      FMT("{: =+}"), 42.0);
   EXPECT_STREQ("+42", buffer);
 }
 
@@ -1441,7 +1442,8 @@ TYPED_TEST(FormatterTest, CustomFormat) {
 
 TYPED_TEST(FormatToTest, CustomFormatTo) {
   char buf[10] = {};
-  auto end = TypeParam::format_to(buf, FMT("{}"), Answer());
+  auto end = &*TypeParam::format_to(fmt::internal::make_checked(buf, 10),
+      FMT("{}"), Answer());
   EXPECT_EQ(end, buf + 2);
   EXPECT_STREQ(buf, "42");
 }
