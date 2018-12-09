@@ -625,7 +625,7 @@ class value {
     typename Context::template formatter_type<T>::type f;
     auto &&parse_ctx = ctx.parse_context();
     parse_ctx.advance_to(f.parse(parse_ctx));
-    ctx.advance_to(f.format(*static_cast<const T *>(arg), ctx));
+    ctx.advance_to(f.format(*static_cast<const T*>(arg), ctx));
   }
 };
 
@@ -924,14 +924,6 @@ class basic_parse_context : private ErrorHandler {
   }
 
   FMT_CONSTEXPR ErrorHandler error_handler() const { return *this; }
-
- private:
-  FMT_CONSTEXPR bool is_indexing_arguments_automatically() const {
-    return next_arg_id_ > 0;
-  }
-  FMT_CONSTEXPR bool is_indexing_arguments_manually() const {
-    return next_arg_id_ == -1;
-  }
 };
 
 typedef basic_parse_context<char> format_parse_context;
@@ -1121,7 +1113,7 @@ class basic_format_context :
   basic_format_context(OutputIt out, basic_string_view<char_type> format_str,
                        basic_format_args<basic_format_context> ctx_args,
                        internal::locale_ref loc = internal::locale_ref())
-      : base(out, format_str, ctx_args, loc), prepared_specs_(FMT_NULL) {}
+    : base(out, format_str, ctx_args, loc), prepared_specs_(FMT_NULL) {}
 
   format_arg next_arg() {
     return this->do_get_arg(this->parse_context().next_arg_id());
