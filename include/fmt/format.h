@@ -1213,8 +1213,7 @@ typedef basic_format_specs<char> format_specs;
 
 template <typename Char, typename ErrorHandler>
 FMT_CONSTEXPR unsigned basic_parse_context<Char, ErrorHandler>::next_arg_id() {
-  if (next_arg_id_ >= 0)
-      return internal::to_unsigned(next_arg_id_++);
+  if (next_arg_id_ >= 0) return internal::to_unsigned(next_arg_id_++);
   on_error("cannot switch from manual to automatic argument indexing");
   return 0;
 }
@@ -1880,130 +1879,127 @@ struct dynamic_format_specs : basic_format_specs<Char> {
 };
 
 struct string_view_metadata {
-    FMT_CONSTEXPR string_view_metadata() : offset_(0u), size_(0u) {}
-    template <typename Char>
-    FMT_CONSTEXPR string_view_metadata(basic_string_view<Char> primary_string,
-                                       basic_string_view<Char> view)
-        : offset_(view.data() - primary_string.data()),
-        size_(view.size()) {}
-    FMT_CONSTEXPR string_view_metadata(std::size_t offset, std::size_t size)
-        : offset_(offset), size_(size) {}
-    template <typename S>
-    FMT_CONSTEXPR typename std::enable_if<internal::is_string<S>::value,
-        basic_string_view<FMT_CHAR(S)>>::type
-        to_view(S &&str) const {
-        const auto view = to_string_view(str);
-        return basic_string_view<FMT_CHAR(S)>(view.data() + offset_, size_);
-    }
+  FMT_CONSTEXPR string_view_metadata() : offset_(0u), size_(0u) {}
+  template <typename Char>
+  FMT_CONSTEXPR string_view_metadata(basic_string_view<Char> primary_string,
+                                     basic_string_view<Char> view)
+      : offset_(view.data() - primary_string.data()), size_(view.size()) {}
+  FMT_CONSTEXPR string_view_metadata(std::size_t offset, std::size_t size)
+      : offset_(offset), size_(size) {}
+  template <typename S>
+  FMT_CONSTEXPR typename std::enable_if<internal::is_string<S>::value,
+                                        basic_string_view<FMT_CHAR(S)>>::type
+  to_view(S &&str) const {
+    const auto view = to_string_view(str);
+    return basic_string_view<FMT_CHAR(S)>(view.data() + offset_, size_);
+  }
 
-    std::size_t offset_;
-    std::size_t size_;
+  std::size_t offset_;
+  std::size_t size_;
 };
 
 template <typename Char>
-class string_value_name_arg_ref_creator
-{
-public:
-    typedef arg_ref<Char, string_value<Char>> arg_ref_type;
+class string_value_name_arg_ref_creator {
+ public:
+  typedef arg_ref<Char, string_value<Char>> arg_ref_type;
 
-    FMT_CONSTEXPR arg_ref_type make_name_arg_ref(basic_string_view<Char> id) const {
-        return arg_ref_type(string_value<Char>{id.data(), id.size()});
-    }
+  FMT_CONSTEXPR arg_ref_type
+  make_name_arg_ref(basic_string_view<Char> id) const {
+    return arg_ref_type(string_value<Char>{id.data(), id.size()});
+  }
 };
 
 template <typename Char>
-class string_metadata_name_arg_ref_creator
-{
-public:
-    typedef arg_ref<Char, string_view_metadata> arg_ref_type;
+class string_metadata_name_arg_ref_creator {
+ public:
+  typedef arg_ref<Char, string_view_metadata> arg_ref_type;
 
-    FMT_CONSTEXPR string_metadata_name_arg_ref_creator(basic_string_view<Char> format)
-        : format_(format)
-    {}
+  FMT_CONSTEXPR string_metadata_name_arg_ref_creator(
+      basic_string_view<Char> format)
+      : format_(format) {}
 
-    FMT_CONSTEXPR string_metadata_name_arg_ref_creator(const string_metadata_name_arg_ref_creator& other)
-        : format_(other.format_)
-    {}
+  FMT_CONSTEXPR string_metadata_name_arg_ref_creator(
+      const string_metadata_name_arg_ref_creator &other)
+      : format_(other.format_) {}
 
-    FMT_CONSTEXPR arg_ref<Char, string_view_metadata> make_name_arg_ref(basic_string_view<Char> id) const
-    {
-        const auto id_metadata = string_view_metadata(format_, id);
-        return arg_ref<Char, string_view_metadata>(id_metadata);
-    }
+  FMT_CONSTEXPR arg_ref<Char, string_view_metadata> make_name_arg_ref(
+      basic_string_view<Char> id) const {
+    const auto id_metadata = string_view_metadata(format_, id);
+    return arg_ref<Char, string_view_metadata>(id_metadata);
+  }
 
-private:
-    basic_string_view<Char> format_;
+ private:
+  basic_string_view<Char> format_;
 };
 
 // Format spec handler that saves references to arguments representing dynamic
 // width and precision to be resolved at formatting time.
-template <typename Specs, typename ParseContext, typename NameRefCreator = string_value_name_arg_ref_creator<typename ParseContext::char_type>>
+template <typename Specs, typename ParseContext,
+          typename NameRefCreator = string_value_name_arg_ref_creator<
+              typename ParseContext::char_type>>
 class dynamic_specs_handler
-    : public specs_setter<typename ParseContext::char_type>
-{
-protected:
-    typedef typename NameRefCreator::arg_ref_type arg_ref_type;
+    : public specs_setter<typename ParseContext::char_type> {
+ protected:
+  typedef typename NameRefCreator::arg_ref_type arg_ref_type;
 
-public:
-    typedef typename ParseContext::char_type char_type;
+ public:
+  typedef typename ParseContext::char_type char_type;
 
-    FMT_CONSTEXPR dynamic_specs_handler(Specs &specs, ParseContext &ctx, NameRefCreator name_ref_creator = NameRefCreator())
-        : specs_setter<char_type>(specs),
+  FMT_CONSTEXPR dynamic_specs_handler(
+      Specs &specs, ParseContext &ctx,
+      NameRefCreator name_ref_creator = NameRefCreator())
+      : specs_setter<char_type>(specs),
         specs_(specs),
         context_(ctx),
-        name_ref_creator_(name_ref_creator)
-    {}
+        name_ref_creator_(name_ref_creator) {}
 
-    template <typename Id>
-    FMT_CONSTEXPR void on_dynamic_width(Id arg_id) {
-        specs_.width_ref = make_arg_ref(arg_id);
-    }
+  template <typename Id>
+  FMT_CONSTEXPR void on_dynamic_width(Id arg_id) {
+    specs_.width_ref = make_arg_ref(arg_id);
+  }
 
-    FMT_CONSTEXPR void on_dynamic_width(basic_string_view<char_type> arg_id) {
-        specs_.width_ref = make_name_arg_ref(arg_id);
-    }
+  FMT_CONSTEXPR void on_dynamic_width(basic_string_view<char_type> arg_id) {
+    specs_.width_ref = make_name_arg_ref(arg_id);
+  }
 
-    template <typename Id>
-    FMT_CONSTEXPR void on_dynamic_precision(Id arg_id) {
-        specs_.precision_ref = make_arg_ref(arg_id);
-    }
+  template <typename Id>
+  FMT_CONSTEXPR void on_dynamic_precision(Id arg_id) {
+    specs_.precision_ref = make_arg_ref(arg_id);
+  }
 
-    FMT_CONSTEXPR void on_dynamic_precision(basic_string_view<char_type> arg_id) {
-        specs_.precision_ref = make_name_arg_ref(arg_id);
-    }
+  FMT_CONSTEXPR void on_dynamic_precision(basic_string_view<char_type> arg_id) {
+    specs_.precision_ref = make_name_arg_ref(arg_id);
+  }
 
-    FMT_CONSTEXPR void on_error(const char *message) {
-        context_.on_error(message);
-    }
+  FMT_CONSTEXPR void on_error(const char *message) {
+    context_.on_error(message);
+  }
 
-private:
-    FMT_CONSTEXPR arg_ref_type make_arg_ref(unsigned arg_id)
-    {
-        context_.check_arg_id(arg_id);
-        return arg_ref_type(arg_id);
-    }
+ private:
+  FMT_CONSTEXPR arg_ref_type make_arg_ref(unsigned arg_id) {
+    context_.check_arg_id(arg_id);
+    return arg_ref_type(arg_id);
+  }
 
-    FMT_CONSTEXPR arg_ref_type make_arg_ref(auto_id)
-    {
-        return arg_ref_type(context_.next_arg_id());
-    }
+  FMT_CONSTEXPR arg_ref_type make_arg_ref(auto_id) {
+    return arg_ref_type(context_.next_arg_id());
+  }
 
-    FMT_CONSTEXPR arg_ref_type make_name_arg_ref(basic_string_view<char_type> arg_id)
-    {
-        context_.check_arg_id(arg_id);
-        return name_ref_creator_.make_name_arg_ref(arg_id);
-    }
+  FMT_CONSTEXPR arg_ref_type
+  make_name_arg_ref(basic_string_view<char_type> arg_id) {
+    context_.check_arg_id(arg_id);
+    return name_ref_creator_.make_name_arg_ref(arg_id);
+  }
 
-    template <typename Id>
-    FMT_CONSTEXPR void check_arg_id(Id id)
-    {
-        context_.check_arg_id(id);
-    }
+  template <typename Id>
+  FMT_CONSTEXPR void check_arg_id(Id id) {
+    context_.check_arg_id(id);
+  }
 
-private:
-    Specs &specs_;
-    ParseContext &context_;
-    NameRefCreator name_ref_creator_;
+ private:
+  Specs &specs_;
+  ParseContext &context_;
+  NameRefCreator name_ref_creator_;
 };
 
 template <typename Char>
@@ -2384,23 +2380,26 @@ struct format_type :
   std::integral_constant<bool, get_type<Context, T>::value != custom_type> {};
 
 template <template <typename> class Handler, typename Spec, typename Context>
-void handle_dynamic_spec(
-    Spec &value, arg_ref<typename Context::char_type, string_value<typename Context::char_type>> ref, Context &ctx) {
-    typedef typename Context::char_type char_type;
-    typedef arg_ref<char_type, string_value<char_type>> arg_ref_type;
-    switch (ref.kind) {
+void handle_dynamic_spec(Spec &value,
+                         arg_ref<typename Context::char_type,
+                                 string_value<typename Context::char_type>>
+                             ref,
+                         Context &ctx) {
+  typedef typename Context::char_type char_type;
+  typedef arg_ref<char_type, string_value<char_type>> arg_ref_type;
+  switch (ref.kind) {
     case arg_ref_type::NONE:
-        break;
+      break;
     case arg_ref_type::INDEX:
-        internal::set_dynamic_spec<Handler>(
-            value, ctx.get_arg(ref.val.index), ctx.error_handler());
-        break;
+      internal::set_dynamic_spec<Handler>(value, ctx.get_arg(ref.val.index),
+                                          ctx.error_handler());
+      break;
     case arg_ref_type::NAME:
-        internal::set_dynamic_spec<Handler>(
-            value, ctx.get_arg({ ref.val.name.value, ref.val.name.size }),
-            ctx.error_handler());
-        break;
-    }
+      internal::set_dynamic_spec<Handler>(
+          value, ctx.get_arg({ref.val.name.value, ref.val.name.size}),
+          ctx.error_handler());
+      break;
+  }
 }
 }  // namespace internal
 
@@ -3191,18 +3190,20 @@ struct formatter<
   template <typename ParseContext>
   FMT_CONSTEXPR typename ParseContext::iterator parse(ParseContext &ctx) {
     auto it = internal::null_terminating_iterator<Char>(ctx);
-    //typedef internal::dynamic_arg_ref_creator<ParseContext> specs_creator;
-    //typedef internal::dynamic_specs_handler<
-        //internal::dynamic_format_specs<Char>, ParseContext, specs_creator>
-        //handler_type;
+    // typedef internal::dynamic_arg_ref_creator<ParseContext> specs_creator;
+    // typedef internal::dynamic_specs_handler<
+    // internal::dynamic_format_specs<Char>, ParseContext, specs_creator>
+    // handler_type;
 
-    typedef internal::dynamic_specs_handler< internal::dynamic_format_specs<Char>, ParseContext> handler_type;
+    typedef internal::dynamic_specs_handler<
+        internal::dynamic_format_specs<Char>, ParseContext>
+        handler_type;
 
     auto type = internal::get_type<
       typename buffer_context<Char>::type, T>::value;
-    //specs_creator creator(ctx);
-    internal::speck_checker<handler_type> handler(
-        handler_type(specs_, ctx), type);
+    // specs_creator creator(ctx);
+    internal::speck_checker<handler_type> handler(handler_type(specs_, ctx),
+                                                  type);
     it = parse_format_specs(it, handler);
     auto type_spec = specs_.type;
     auto eh = ctx.error_handler();
@@ -3249,7 +3250,6 @@ struct formatter<
 
   template <typename FormatContext>
   auto format(const T &val, FormatContext &ctx) -> decltype(ctx.out()) {
-
     internal::handle_dynamic_spec<internal::width_checker>(
         specs_.width_, specs_.width_ref, ctx);
     internal::handle_dynamic_spec<internal::precision_checker>(
@@ -3291,7 +3291,9 @@ class dynamic_formatter {
   template <typename ParseContext>
   auto parse(ParseContext &ctx) -> decltype(ctx.begin()) {
     auto it = internal::null_terminating_iterator<Char>(ctx);
-    typedef internal::dynamic_specs_handler< internal::dynamic_format_specs<Char>, ParseContext> handler_type;
+    typedef internal::dynamic_specs_handler<
+        internal::dynamic_format_specs<Char>, ParseContext>
+        handler_type;
     handler_type handler(specs_, ctx);
     // Checks are deferred to formatting time when the argument type is known.
     it = parse_format_specs(it, handler);

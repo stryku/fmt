@@ -139,10 +139,9 @@ class format_preparation_handler : public internal::error_handler {
       : parts_(parts), format_(format), parse_context_(format) {}
 
   FMT_CONSTEXPR void on_text(const Char *begin, const Char *end) {
-      if (begin == end)
-      {
-          return;
-      }
+    if (begin == end) {
+      return;
+    }
     const auto offset = begin - format_.data();
     const auto size = end - begin;
     parts_.add(part(string_view_metadata(offset, size)));
@@ -176,10 +175,12 @@ class format_preparation_handler : public internal::error_handler {
     typedef basic_parse_context<Char> parse_context;
     prepared_specs parsed_specs;
 
-    //typedef prepared_specs_handler_2< prepared_specs, parse_context> handler_type;
+    // typedef prepared_specs_handler_2< prepared_specs, parse_context>
+    // handler_type;
 
     typedef string_metadata_name_arg_ref_creator<Char> name_ref_creator;
-    dynamic_specs_handler< prepared_specs, parse_context, name_ref_creator>   handler(parsed_specs, parse_context_, name_ref_creator(format_));
+    dynamic_specs_handler<prepared_specs, parse_context, name_ref_creator>
+        handler(parsed_specs, parse_context_, name_ref_creator(format_));
     it = parse_format_specs(it, handler);
 
     if (*it != '}') {
@@ -305,28 +306,24 @@ class prepared_format {
   }
 
  private:
-     arg_ref<char_type, string_value<char_type>> metadata_to_string_value_arg_ref(const arg_ref<char_type, string_view_metadata>& metadata_arg_ref) const
-     {
-         typedef const arg_ref<char_type, string_view_metadata> kind_type;
-         typedef arg_ref<char_type, string_value<char_type>> arg_ref_type;
-         switch (metadata_arg_ref.kind)
-         {
-         case kind_type::INDEX:
-         {
-             return arg_ref_type(metadata_arg_ref.val.index);
-         }
-         case kind_type::NAME:
-         {
-             const auto view = metadata_arg_ref.val.name.to_view(internal::to_string_view(format_));
-             const auto str_value = string_value<char_type>{ view.data(), view.size() };
-             return arg_ref_type(str_value);
-         }
-         default:
-         {
-             return {};
-         }
-         }
-     }
+  arg_ref<char_type, string_value<char_type>> metadata_to_string_value_arg_ref(
+      const arg_ref<char_type, string_view_metadata> &metadata_arg_ref) const {
+    typedef const arg_ref<char_type, string_view_metadata> kind_type;
+    typedef arg_ref<char_type, string_value<char_type>> arg_ref_type;
+    switch (metadata_arg_ref.kind) {
+      case kind_type::INDEX: {
+        return arg_ref_type(metadata_arg_ref.val.index);
+      }
+      case kind_type::NAME: {
+        const auto view = metadata_arg_ref.val.name.to_view(
+            internal::to_string_view(format_));
+        const auto str_value =
+            string_value<char_type>{view.data(), view.size()};
+        return arg_ref_type(str_value);
+      }
+      default: { return {}; }
+    }
+  }
 
   template <typename Range, typename Context>
   typename Context::iterator vformat_to(Range out,
@@ -369,9 +366,11 @@ class prepared_format {
           auto specs = value.spec.parsed_specs;
 
           handle_dynamic_spec<internal::width_checker>(
-              specs.width_, metadata_to_string_value_arg_ref(specs.width_ref), ctx);
+              specs.width_, metadata_to_string_value_arg_ref(specs.width_ref),
+              ctx);
           handle_dynamic_spec<internal::precision_checker>(
-              specs.precision, metadata_to_string_value_arg_ref(specs.precision_ref), ctx);
+              specs.precision,
+              metadata_to_string_value_arg_ref(specs.precision_ref), ctx);
 
           // Custom type check will be handled by custom formatter while
           // parsing/formatting.
@@ -419,10 +418,10 @@ class compiletime_prepared_parts_type_provider {
    public:
     FMT_CONSTEXPR count_handler() : counter_(0u) {}
 
-    FMT_CONSTEXPR void on_text(const char_type * begin, const char_type *end) {
-        if (begin != end) {
-            ++counter_;
-        }
+    FMT_CONSTEXPR void on_text(const char_type *begin, const char_type *end) {
+      if (begin != end) {
+        ++counter_;
+      }
     }
 
     FMT_CONSTEXPR void on_arg_id() { ++counter_; }
