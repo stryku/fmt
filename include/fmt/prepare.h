@@ -306,6 +306,29 @@ class prepared_format {
   }
 
  private:
+     arg_ref<char_type, string_value<char_type>> metadata_to_string_value_arg_ref(const arg_ref<char_type, string_view_metadata>& metadata_arg_ref) const
+     {
+         typedef const arg_ref<char_type, string_view_metadata> kind_type;
+         typedef arg_ref<char_type, string_value<char_type>> arg_ref_type;
+         switch (metadata_arg_ref.kind)
+         {
+         case kind_type::INDEX:
+         {
+             return arg_ref_type(metadata_arg_ref.val.index);
+         }
+         case kind_type::NAME:
+         {
+             const auto view = metadata_arg_ref.val.name.to_view(internal::to_string_view(format_));
+             const auto str_value = string_value<char_type>{ view.data(), view.size() };
+             return arg_ref_type(str_value);
+         }
+         default:
+         {
+             return {};
+         }
+         }
+     }
+
   template <typename Range, typename Context>
   typename Context::iterator vformat_to(Range out,
                                         basic_format_args<Context> args) const {
@@ -346,12 +369,10 @@ class prepared_format {
 
           auto specs = value.spec.parsed_specs;
 
-          typedef arg_ref_getter<decltype(specs.width_ref)> getter;
-
           handle_dynamic_spec<internal::width_checker>(
-              specs.width_, getter(specs.width_ref, format_view), ctx);
+              specs.width_, metadata_to_string_value_arg_ref(specs.width_ref), ctx);
           handle_dynamic_spec<internal::precision_checker>(
-              specs.precision, getter(specs.precision_ref, format_view), ctx);
+              specs.precision, metadata_to_string_value_arg_ref(specs.precision_ref), ctx);
 
           // Custom type check will be handled by custom formatter while
           // parsing/formatting.

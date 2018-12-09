@@ -1880,9 +1880,6 @@ struct dynamic_format_specs : basic_format_specs<Char> {
   arg_ref_type precision_ref;
 };
 
-
-
-
 struct string_view_metadata {
     FMT_CONSTEXPR string_view_metadata() : offset_(0u), size_(0u) {}
     template <typename Char>
@@ -1899,6 +1896,7 @@ struct string_view_metadata {
         const auto view = to_string_view(str);
         return basic_string_view<FMT_CHAR(S)>(view.data() + offset_, size_);
     }
+
     unsigned offset_;
     unsigned size_;
 };
@@ -2025,43 +2023,6 @@ struct prepared_format_specs : basic_format_specs<Char> {
   typedef arg_ref<Char, string_view_metadata> arg_ref_type;
   arg_ref_type width_ref;
   arg_ref_type precision_ref;
-};
-
-template <typename ArgRef>
-class arg_ref_getter_base {
- public:
-  FMT_CONSTEXPR unsigned index() const { return ref_.val.index; }
-  FMT_CONSTEXPR typename ArgRef::Kind kind() const { return ref_.kind; }
-
- protected:
-  FMT_CONSTEXPR arg_ref_getter_base(const ArgRef &ref) : ref_(ref) {}
-  const ArgRef &ref_;
-};
-template <typename ArgRef>
-class arg_ref_getter : public arg_ref_getter_base<ArgRef> {
- public:
-  FMT_CONSTEXPR arg_ref_getter(const ArgRef &ref)
-      : arg_ref_getter_base<ArgRef>(ref) {}
-  FMT_CONSTEXPR basic_string_view<typename ArgRef::char_type> name() const {
-    const auto &ref_name = this->ref_.val.name;
-    return {ref_name.value, ref_name.size};
-  }
-};
-template <typename Char>
-class arg_ref_getter<arg_ref<Char, string_view_metadata>>
-    : public arg_ref_getter_base<arg_ref<Char, string_view_metadata>> {
-  typedef arg_ref<Char, string_view_metadata> arg_ref_type;
-
- public:
-  FMT_CONSTEXPR arg_ref_getter(const arg_ref_type &ref,
-                               basic_string_view<Char> format_str)
-      : arg_ref_getter_base<arg_ref_type>(ref), format_(format_str) {}
-  FMT_CONSTEXPR basic_string_view<Char> name() const {
-    return this->ref_.val.name.to_view(format_);
-  }
-
- private:
-  basic_string_view<Char> format_;
 };
 
 template <typename Iterator, typename IDHandler>
@@ -2437,22 +2398,24 @@ template <typename Context, typename T>
 struct format_type :
   std::integral_constant<bool, get_type<Context, T>::value != custom_type> {};
 
-template <template <typename> class Handler, typename Spec, typename ArgRef,
-          typename Context>
-void handle_dynamic_spec(Spec &value, arg_ref_getter<ArgRef> ref,
-                         Context &ctx) {
-  switch (ref.kind()) {
-    case ArgRef::NONE:
-      break;
-    case ArgRef::INDEX: {
-      internal::set_dynamic_spec<Handler>(value, ctx.get_arg(ref.index()),
-                                          ctx.error_handler());
-    } break;
-    case ArgRef::NAME:
-      internal::set_dynamic_spec<Handler>(value, ctx.get_arg(ref.name()),
-                                          ctx.error_handler());
-      break;
-  }
+template <template <typename> class Handler, typename Spec, typename Context>
+void handle_dynamic_spec(
+    Spec &value, arg_ref<typename Context::char_type, string_value<typename Context::char_type>> ref, Context &ctx) {
+    typedef typename Context::char_type char_type;
+    typedef arg_ref<typename Context::char_type, string_value<typename Context::char_type>> arg_ref_type;
+    switch (ref.kind) {
+    case arg_ref_type::NONE:
+        break;
+    case arg_ref_type::INDEX:
+        internal::set_dynamic_spec<Handler>(
+            value, ctx.get_arg(ref.val.index), ctx.error_handler());
+        break;
+    case arg_ref_type::NAME:
+        internal::set_dynamic_spec<Handler>(
+            value, ctx.get_arg({ ref.val.name.value, ref.val.name.size }),
+            ctx.error_handler());
+        break;
+    }
 }
 }  // namespace internal
 
@@ -3301,12 +3264,11 @@ struct formatter<
 
   template <typename FormatContext>
   auto format(const T &val, FormatContext &ctx) -> decltype(ctx.out()) {
-    typedef internal::arg_ref_getter<decltype(specs_.width_ref)> getter;
 
     internal::handle_dynamic_spec<internal::width_checker>(
-        specs_.width_, getter(specs_.width_ref), ctx);
+        specs_.width_, specs_.width_ref, ctx);
     internal::handle_dynamic_spec<internal::precision_checker>(
-        specs_.precision, getter(specs_.precision_ref), ctx);
+        specs_.precision, specs_.precision_ref, ctx);
     typedef output_range<typename FormatContext::iterator,
                          typename FormatContext::char_type> range_type;
     return visit_format_arg(arg_formatter<range_type>(ctx, &specs_),
@@ -3393,11 +3355,10 @@ class dynamic_formatter {
  private:
   template <typename Context>
   void handle_specs(Context &ctx) {
-    typedef internal::arg_ref_getter<decltype(specs_.width_ref)> getter;
     internal::handle_dynamic_spec<internal::width_checker>(
-        specs_.width_, getter(specs_.width_ref), ctx);
+        specs_.width_, specs_.width_ref, ctx);
     internal::handle_dynamic_spec<internal::precision_checker>(
-        specs_.precision, getter(specs_.precision_ref), ctx);
+        specs_.precision, specs_.precision_ref, ctx);
   }
 
   dynamic_specs specs_;
