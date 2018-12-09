@@ -2387,7 +2387,7 @@ template <template <typename> class Handler, typename Spec, typename Context>
 void handle_dynamic_spec(
     Spec &value, arg_ref<typename Context::char_type, string_value<typename Context::char_type>> ref, Context &ctx) {
     typedef typename Context::char_type char_type;
-    typedef arg_ref<typename Context::char_type, string_value<typename Context::char_type>> arg_ref_type;
+    typedef arg_ref<char_type, string_value<char_type>> arg_ref_type;
     switch (ref.kind) {
     case arg_ref_type::NONE:
         break;
