@@ -176,10 +176,10 @@ class format_preparation_handler : public internal::error_handler {
     typedef basic_parse_context<Char> parse_context;
     prepared_specs parsed_specs;
 
-    typedef prepared_specs_handler_2< prepared_specs, parse_context> handler_type;
+    //typedef prepared_specs_handler_2< prepared_specs, parse_context> handler_type;
 
-
-    handler_type handler(parsed_specs, parse_context_, format_);
+    typedef string_metadata_name_arg_ref_creator<Char> name_ref_creator;
+    dynamic_specs_handler< prepared_specs, parse_context, name_ref_creator>   handler(parsed_specs, parse_context_, name_ref_creator(format_));
     it = parse_format_specs(it, handler);
 
     if (*it != '}') {

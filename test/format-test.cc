@@ -1210,7 +1210,7 @@ FMT_CONSTEXPR fmt::internal::dynamic_format_specs<char>
   typedef fmt::internal::dynamic_format_specs<char> dynamic_specs;
   dynamic_specs specs;
   test_context ctx{};
-  typedef fmt::internal::dynamic_specs_handler_2< dynamic_specs, test_context> handler_type;
+  typedef fmt::internal::dynamic_specs_handler< dynamic_specs, test_context> handler_type;
   handler_type h(specs, ctx);
   parse_format_specs(s, h);
   return specs;
