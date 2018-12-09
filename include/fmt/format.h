@@ -2390,13 +2390,13 @@ void handle_dynamic_spec(Spec &value,
   case arg_ref_type::NONE:
     break;
   case arg_ref_type::INDEX:
-    internal::set_dynamic_spec<Handler>(value, ctx.get_arg(ref.val.index),
-                                        ctx.error_handler());
+    internal::set_dynamic_spec<Handler>(
+          value, ctx.get_arg(ref.val.index), ctx.error_handler());
     break;
   case arg_ref_type::NAME:
     internal::set_dynamic_spec<Handler>(
-        value, ctx.get_arg({ref.val.name.value, ref.val.name.size}),
-        ctx.error_handler());
+          value, ctx.get_arg({ref.val.name.value, ref.val.name.size}),
+          ctx.error_handler());
     break;
   }
 }
@@ -3194,8 +3194,8 @@ struct formatter<
         handler_type;
     auto type = internal::get_type<
       typename buffer_context<Char>::type, T>::value;
-    internal::specs_checker<handler_type> handler(handler_type(specs_, ctx),
-                                                  type);
+    internal::specs_checker<handler_type>
+        handler(handler_type(specs_, ctx), type);
     it = parse_format_specs(it, handler);
     auto type_spec = specs_.type;
     auto eh = ctx.error_handler();
@@ -3430,8 +3430,8 @@ struct format_handler : internal::error_handler {
     }
     basic_format_specs<Char> specs;
     using internal::specs_handler;
-    internal::specs_checker<specs_handler<Context>> handler(
-        specs_handler<Context>(specs, context), arg.type());
+    internal::specs_checker<specs_handler<Context>>
+        handler(specs_handler<Context>(specs, context), arg.type());
     it = parse_format_specs(it, handler);
     if (*it != '}')
       on_error("missing '}' in format string");
