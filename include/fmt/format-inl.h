@@ -360,7 +360,7 @@ class fp {
   static FMT_CONSTEXPR_DECL const int double_significand_size =
     std::numeric_limits<double>::digits - 1;
   static FMT_CONSTEXPR_DECL const uint64_t implicit_bit =
-      1ull << double_significand_size;
+    1ull << double_significand_size;
 
  public:
   significand_type f;

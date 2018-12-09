@@ -326,9 +326,7 @@ class printf_arg_formatter:
 template <typename T>
 struct printf_formatter {
   template <typename ParseContext>
-  auto parse(ParseContext &ctx) -> decltype(ctx.begin()) {
-    return ctx.begin();
-  }
+  auto parse(ParseContext &ctx) -> decltype(ctx.begin()) { return ctx.begin(); }
 
   template <typename FormatContext>
   auto format(const T &value, FormatContext &ctx) -> decltype(ctx.out()) {
