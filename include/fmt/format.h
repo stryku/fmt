@@ -1884,9 +1884,9 @@ struct string_view_metadata {
     template <typename Char>
     FMT_CONSTEXPR string_view_metadata(basic_string_view<Char> primary_string,
                                        basic_string_view<Char> view)
-        : offset_(static_cast<unsigned>(view.data() - primary_string.data())),
-        size_(static_cast<unsigned>(view.size())) {}
-    FMT_CONSTEXPR string_view_metadata(unsigned offset, unsigned size)
+        : offset_(view.data() - primary_string.data()),
+        size_(view.size()) {}
+    FMT_CONSTEXPR string_view_metadata(std::size_t offset, std::size_t size)
         : offset_(offset), size_(size) {}
     template <typename S>
     FMT_CONSTEXPR typename std::enable_if<internal::is_string<S>::value,
@@ -1896,8 +1896,8 @@ struct string_view_metadata {
         return basic_string_view<FMT_CHAR(S)>(view.data() + offset_, size_);
     }
 
-    unsigned offset_;
-    unsigned size_;
+    std::size_t offset_;
+    std::size_t size_;
 };
 
 // Base of format spec handlers that save references to arguments representing dynamic
