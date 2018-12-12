@@ -1944,7 +1944,8 @@ template <typename Specs, typename ParseContext,
           typename NameRefCreator = string_value_name_arg_ref_creator<
               typename ParseContext::char_type>>
 class dynamic_specs_handler
-    : public specs_setter<typename ParseContext::char_type> {
+    : private NameRefCreator,
+      public specs_setter<typename ParseContext::char_type> {
  protected:
   typedef typename NameRefCreator::arg_ref_type arg_ref_type;
 
@@ -1954,10 +1955,10 @@ class dynamic_specs_handler
   FMT_CONSTEXPR dynamic_specs_handler(
       Specs &specs, ParseContext &ctx,
       NameRefCreator name_ref_creator = NameRefCreator())
-      : specs_setter<char_type>(specs),
+      : NameRefCreator(name_ref_creator),
+        specs_setter<char_type>(specs),
         specs_(specs),
-        context_(ctx),
-        name_ref_creator_(name_ref_creator) {}
+        context_(ctx) {}
 
   template <typename Id>
   FMT_CONSTEXPR void on_dynamic_width(Id arg_id) {
@@ -1994,7 +1995,7 @@ class dynamic_specs_handler
   FMT_CONSTEXPR arg_ref_type
   make_name_arg_ref(basic_string_view<char_type> arg_id) {
     context_.check_arg_id(arg_id);
-    return name_ref_creator_.make_name_arg_ref(arg_id);
+    return NameRefCreator::make_name_arg_ref(arg_id);
   }
 
   template <typename Id>
@@ -2005,7 +2006,6 @@ class dynamic_specs_handler
  private:
   Specs &specs_;
   ParseContext &context_;
-  NameRefCreator name_ref_creator_;
 };
 
 template <typename Char>
