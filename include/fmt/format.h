@@ -618,7 +618,7 @@ template <typename Char>
 class null_terminating_iterator;
 
 template <typename Char>
-FMT_CONSTEXPR const Char *pointer_from(null_terminating_iterator<Char> it);
+FMT_CONSTEXPR_DECL const Char *pointer_from(null_terminating_iterator<Char> it);
 
 // An iterator that produces a null terminator on *end. This simplifies parsing
 // and allows comparing the performance of processing a null-terminated string
@@ -696,7 +696,7 @@ class null_terminating_iterator {
   // This should be a friend specialization pointer_from<Char> but the latter
   // doesn't compile by gcc 5.1 due to a compiler bug.
   template <typename CharT>
-  friend FMT_CONSTEXPR const CharT *pointer_from(
+  friend FMT_CONSTEXPR_DECL const CharT *pointer_from(
       null_terminating_iterator<CharT> it);
 
  private:
