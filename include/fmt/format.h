@@ -1804,6 +1804,8 @@ FMT_CONSTEXPR void set_dynamic_spec(
   value = static_cast<T>(big_value);
 }
 
+struct auto_id {};
+
 // The standard format specifier handler with checking.
 template <typename Context>
 class specs_handler: public specs_setter<typename Context::char_type> {

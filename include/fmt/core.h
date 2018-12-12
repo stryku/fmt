@@ -776,8 +776,6 @@ enum : unsigned long long { is_unpacked_bit = 1ull << 63 };
 
 template <typename Context>
 class arg_map;
-
-struct auto_id {};
 }  // namespace internal
 
 // A formatting argument. It is a trivially copyable/constructible type to
